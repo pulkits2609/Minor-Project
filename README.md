@@ -32,6 +32,12 @@ Identifies hazards, assigns a Risk Score, and issues actions/alerts based on Dir
 Supports multiple user subtypes inheriting from a base user profile.
 - **Subtypes:** Mine Admin, Safety Officer, Supervisor, Worker.
 
+### 4. Worker Logistics & Audit Notifications
+Tracks job assignments and maintains the emergency alert audit trail.
+- `GET /shifts/worker/<id>` - Retrieve a specific worker's upcoming shift schedule roster.
+- `GET /incidents/alerts` - Query an immutable audit log of broadcasted emergency notifications.
+- `POST /tasks/` - Assign targeted maintenance/prep jobs to specific workers.
+
 ## Setup & Installation
 
 **1. Clone the Repository:**

@@ -29,3 +29,16 @@ class SMPHazardRecord(db.Model):
     control_mechanism = db.Column(db.Text)
     responsibility_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
     review_status = db.Column(db.String(50), default='Pending Monitoring')
+
+class AlertMessage(db.Model):
+    """Audit log and broadcast mechanism for Incident/Safety Notifications."""
+    __tablename__ = 'alert_messages'
+    
+    alert_id = db.Column(db.Integer, primary_key=True)
+    incident_id = db.Column(db.Integer, db.ForeignKey('incidents.incident_id'), nullable=True)
+    smp_hazard_id = db.Column(db.Integer, db.ForeignKey('smp_hazard_records.hazard_id'), nullable=True)
+    
+    message = db.Column(db.Text, nullable=False)
+    target_role = db.Column(db.String(50), default='All') # e.g., 'Safety Officer', 'Supervisor', 'All'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_read = db.Column(db.Boolean, default=False)

@@ -21,9 +21,11 @@ def create_app(config_class=Config):
     from app.routes.auth import auth_bp
     from app.routes.shifts import shifts_bp
     from app.routes.incidents import incidents_bp
+    from app.routes.tasks import tasks_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(shifts_bp, url_prefix='/shifts')
     app.register_blueprint(incidents_bp, url_prefix='/incidents')
+    app.register_blueprint(tasks_bp, url_prefix='/tasks')
 
     return app

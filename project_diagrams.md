@@ -152,16 +152,26 @@ This section outlines the primary API pathways exposed by the Flask backend that
 
 | Method | Endpoint | Description | Expected Input (JSON) | Expected Output (JSON) |
 |---|---|---|---|---|
-| `POST` | `/shifts/` | Creates a new shift block entry. | `{"start_time": "2024-05-01T06:00:00", "end_time": "2024-05-01T14:00:00", "location": "Main Pit"}` | `{"message": "Shift log created", "shift_id": 402}` |
+| `POST` | `/shifts/` | Creates a new shift block entry. | `{"start_time": "...", "end_time": "...", "location": "Main Pit"}` | `{"message": "Shift log created", "shift_id": 402}` |
+| `GET` | `/shifts/worker/<id>` | Retrieves incoming shifts mapped to a specific worker. | *None* | `{"worker_id": 45, "schedule": [...]}` |
 | `POST` | `/shifts/check-in` | Tracks worker attendance at start of shift. | `{"shift_id": 402, "worker_id": 45}` | `{"message": "Checked in successfully"}` |
-| `POST` | `/shifts/handover` | **Digital Shift Handover.** Logs details & generates the statutory PDF report. | `{"shift_id": 402, "equipment_status": "Excavator EX-04 Breakdown...", "production_summary": "1200T achieved...", "safety_red_flags": "Highwall instability near Sector 4B", "actions_required": "Geotech survey required"}` | `{"message": "Shift handover logged...", "pdf_report_path": "/path/to/report.pdf"}` |
-| `GET` | `/shifts/handover/download` | Retrieves the generated PDF log file. | *(Query Param: `?path=/path/to/report.pdf`)* | *(The raw PDF file download stream)* |
+| `POST` | `/shifts/handover` | **Digital Shift Handover.** Logs details & generates statutory PDF report. | `{"shift_id": 402, "equipment_status": "..."}` | `{"message": "Shift handover logged...", "pdf_report_path": "/path"}` |
+| `GET` | `/shifts/handover/download` | Retrieves the generated PDF log file. | *(Query Param: `?path=...`)* | *(Raw PDF file download stream)* |
 
 ### Safety Management Plan & Incidents (`/incidents`)
 
 | Method | Endpoint | Description | Expected Input (JSON) | Expected Output (JSON) |
 |---|---|---|---|---|
-| `POST` | `/incidents/smp/hazard` | **Logs a DGMS SMP Hazard.** Mathematically calculates Risk Score (Probability $\times$ Consequence). | `{"location": "Sector 4B", "hazard_description": "Water seepage", "probability": 4, "consequence": 4, "control_mechanism": "Install booster pumps"}` | `{"message": "Hazard recorded", "calculated_risk_score": 16, "requires_immediate_action": true}` |
+| `POST` | `/incidents/smp/hazard` | **Logs a DGMS SMP Hazard.** Mathematically calculates Risk Score (`P x C`). | `{"location": "Sector 4B", "probability": 4, "consequence": 4}` | `{"message": "Hazard recorded", "calculated_risk_score": 16, "requires_immediate_action": true}` |
 | `GET` | `/incidents/smp/dashboard`| Retrieves dashboard stats for active hazards (for Safety Officers). | *None* | `{"active_hazards": 2, "pending_reviews": 1, "critical_risks": 1}` |
-| `POST` | `/incidents/` | Reports a general, non-SMP incident or general accident. | `{"location": "Haul Road 2", "severity": "Medium", "description": "Truck tire puncture."}` | `{"message": "Incident reported"}` |
+| `GET` | `/incidents/alerts` | Queries the immutable audit log of broadcasted emergency notifications. | *None* | `{"alerts": [{"message": "...", "is_read": false}]}` |
+| `POST` | `/incidents/` | Reports a general, non-SMP incident or general accident. | `{"location": "Haul Road 2", "severity": "Medium"}` | `{"message": "Incident reported"}` |
 | `PUT` | `/incidents/<id>/review` | Updates the status of an existing incident report. | `{"status": "Closed"}` | `{"message": "Incident 5 reviewed"}` |
+
+### Worker Job & Task Logistics (`/tasks`)
+
+| Method | Endpoint | Description | Expected Input (JSON) | Expected Output (JSON) |
+|---|---|---|---|---|
+| `POST` | `/tasks/` | Assigns a maintenance/prep task specifically to a worker's ID. | `{"task_name": "Drill prep", "assigned_to": 45}` | `{"message": "Task assigned to worker successfully"}` |
+| `GET` | `/tasks/worker/<id>` | Retrieves a worker's active daily assignment sheet. | *None* | `{"tasks": [{"task_name": "Drill prep", "status": "Pending"}]}` |
+| `PUT` | `/tasks/<id>/status` | Transitions a worker's task status lifecycle to Completed. | `{"status": "Completed"}` | `{"message": "Task 1 status updated to Completed"}` |

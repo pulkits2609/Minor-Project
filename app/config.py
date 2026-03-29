@@ -11,9 +11,12 @@ class Config:
     # SQLAlchemy Configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     
-    # If the provided Supabase URL uses postgres://, SQLAlchemy requires postgresql://
-    if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
-        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
+    # If the provided Supabase URL uses postgres:// or postgresql://, SQLAlchemy needs the pg8000 driver explicitly
+    if SQLALCHEMY_DATABASE_URI:
+        if SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
+            SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql+pg8000://", 1)
+        elif SQLALCHEMY_DATABASE_URI.startswith("postgresql://"):
+            SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgresql://", "postgresql+pg8000://", 1)
         
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     

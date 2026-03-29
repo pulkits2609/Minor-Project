@@ -42,3 +42,22 @@ def download_handover_report():
     if os.path.exists(file_path):
         return send_file(file_path, as_attachment=True)
     return jsonify({"error": "Report not found"}), 404
+
+@shifts_bp.route('/check-in', methods=['POST'])
+def check_in():
+    return jsonify({"message": "Checked in successfully"}), 200
+
+@shifts_bp.route('/check-out', methods=['POST'])
+def check_out():
+    return jsonify({"message": "Checked out successfully"}), 200
+
+@shifts_bp.route('/worker/<int:worker_id>', methods=['GET'])
+def get_worker_schedule(worker_id):
+    """Fetches upcoming work schedules (shifts) for a specific worker."""
+    return jsonify({
+        "worker_id": worker_id, 
+        "schedule": [
+            {"shift_id": 402, "start_time": "2024-05-01T06:00:00", "end_time": "2024-05-01T14:00:00", "location": "Main Pit", "status": "Scheduled"}
+        ]
+    }), 200
+

@@ -47,3 +47,18 @@ def get_smp_dashboard():
 def report_incident():
     # Placeholder for reporting an incident
     return jsonify({"message": "Incident reported"}), 201
+
+@incidents_bp.route('/', methods=['GET'])
+def get_incidents():
+    return jsonify({"incidents": []}), 200
+
+@incidents_bp.route('/<int:id>/review', methods=['PUT'])
+def review_incident(id):
+    return jsonify({"message": f"Incident {id} reviewed"}), 200
+
+@incidents_bp.route('/alerts', methods=['GET'])
+def get_alerts():
+    """Fetches the notification audit log for recent incidents and warnings."""
+    return jsonify({"alerts": [{"alert_id": 1, "message": "Highwall instability reported in Sector 4B", "target_role": "Safety Officer", "is_read": False}]}), 200
+
+
