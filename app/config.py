@@ -1,9 +1,9 @@
 import os
 from dotenv import load_dotenv
 
-# Load .env.local file if it exists
+# Load .env file
 basedir = os.path.abspath(os.path.dirname(__file__))
-load_dotenv(os.path.join(basedir, '../.env.local'))
+load_dotenv(os.path.join(basedir, '../.env'))
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard-to-guess-string'
