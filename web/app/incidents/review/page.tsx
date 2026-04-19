@@ -2,7 +2,8 @@
 "use client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { AlertCircle, CheckCircle2, Clock, MessageSquare } from "lucide-react";
-import { useState, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 
 export default function IncidentReviewPage() {
