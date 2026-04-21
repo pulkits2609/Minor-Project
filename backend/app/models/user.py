@@ -1,51 +1,12 @@
 from app.extensions import db
-from datetime import datetime
+import uuid
 
 class User(db.Model):
-    __tablename__ = 'users'
-    
-    user_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(50), nullable=False)
+    __tablename__ = "users"
 
-    # For polymorphic identity mapping (joined table inheritance)
-    __mapper_args__ = {
-        'polymorphic_on': role,
-        'polymorphic_identity': 'user'
-    }
-
-class Worker(User):
-    __tablename__ = 'workers'
-    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), primary_key=True)
-    health_status = db.Column(db.String(100))
-    
-    __mapper_args__ = {
-        'polymorphic_identity': 'worker'
-    }
-
-class Supervisor(User):
-    __tablename__ = 'supervisors'
-    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), primary_key=True)
-    team_size = db.Column(db.Integer)
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'supervisor'
-    }
-
-class SafetyOfficer(User):
-    __tablename__ = 'safety_officers'
-    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), primary_key=True)
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'safety_officer'
-    }
-
-class Administrator(User):
-    __tablename__ = 'administrators'
-    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), primary_key=True)
-    access_level = db.Column(db.Integer)
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'administrator'
-    }
+    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = db.Column(db.Text, nullable=False)
+    email = db.Column(db.Text, unique=True, nullable=False)
+    password_hash = db.Column(db.Text, nullable=False)
+    role = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
