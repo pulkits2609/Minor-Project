@@ -1,14 +1,16 @@
 from app.extensions import db
+import uuid
 
 class Task(db.Model):
-    __tablename__ = 'tasks'
-    
-    task_id = db.Column(db.Integer, primary_key=True)
-    task_name = db.Column(db.String(255), nullable=False)
+    __tablename__ = "tasks"
+
+    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
-    priority = db.Column(db.String(50))
-    status = db.Column(db.String(50), default='Pending')
-    
-    # Often tasks are assigned to workers or created by supervisors
-    # assigned_to = db.Column(db.Integer, db.ForeignKey('workers.user_id'))
-    # assigned_by = db.Column(db.Integer, db.ForeignKey('supervisors.user_id'))
+    priority = db.Column(db.Text)
+    status = db.Column(db.Text, default="assigned")
+
+    assigned_to = db.Column(db.UUID(as_uuid=True), db.ForeignKey("users.id"))
+    assigned_by = db.Column(db.UUID(as_uuid=True), db.ForeignKey("users.id"))
+
+    created_at = db.Column(db.DateTime, server_default=db.func.now())

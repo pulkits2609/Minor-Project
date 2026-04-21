@@ -1,0 +1,1912 @@
+﻿
+===== FILE: login/page.tsx =====
+
+'use client'
+import Link from "next/link"
+import { useState, useRef } from "react"
+import { AlertCircle } from "lucide-react"
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showDemo, setShowDemo] = useState(false)
+  const demoResultsRef = useRef<HTMLDivElement>(null)
+
+  const handleLogin = (role: string) => {
+    // Demo login - just navigate with role
+    window.location.href = `/dashboard/${role}?role=${role}`
+  }
+
+  const demoAccounts = [
+    { email: "worker@coalmine.com", password: "****", role: "worker", title: "Worker" },
+    { email: "supervisor@coalmine.com", password: "****", role: "supervisor", title: "Supervisor" },
+    { email: "safety@coalmine.com", password: "****", role: "safety", title: "Safety Officer" },
+    { email: "admin@coalmine.com", password: "****", role: "admin", title: "Administrator" },
+    { email: "authority@coalmine.com", password: "****", role: "authority", title: "Authority/Mine Ops" },
+  ]
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-white">
+      <div className="w-full max-w-md">
+        
+        {/* LOGO */}
+        <div className="text-center mb-8">
+          <Link href="/">
+            <h1 className="text-3xl font-bold mb-2 hover:text-orange-400 transition">MineOps</h1>
+          </Link>
+          <p className="text-gray-400 text-sm">Coal Mine Safety System</p>
+        </div>
+
+        {/* LOGIN CARD */}
+        <div className="p-8 bg-neutral-900 rounded-2xl shadow-lg border border-neutral-800 mb-6">
+
+          <h2 className="text-2xl font-bold mb-6 text-center">
+            Mine Safety Login
+          </h2>
+
+          {/* FORM */}
+          <div className="space-y-4 mb-6">
+
+            <div>
+              <label className="text-xs text-gray-400 mb-2 block">Email / Employee ID</label>
+              <input
+                type="text"
+                placeholder="Enter your email or employee ID"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-3 rounded-lg bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-2 block">Password</label>
+              <input
+                type="password"
+                placeholder="Enter secure password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-3 rounded-lg bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400 text-white"
+              />
+            </div>
+
+            <div className="bg-neutral-800 p-3 rounded-lg text-xs">
+              <p className="text-gray-400">Assigned Role: <span className="text-orange-400">fetched from backend policy after authentication</span></p>
+            </div>
+
+            <button 
+              onClick={() => handleLogin('worker')}
+              className="w-full py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-semibold"
+            >
+              Sign In
+            </button>
+          </div>
+
+          {/* DEMO SECTION */}
+          <div className="mb-6 pb-6 border-b border-neutral-800">
+            <button
+              onClick={() => setShowDemo(!showDemo)}
+              className="w-full py-2 text-orange-400 text-sm hover:text-orange-300 transition"
+            >
+              {showDemo ? "Hide Demo Accounts" : "Demo Mode (Test Accounts)"}
+            </button>
+
+            {showDemo && (
+              <div ref={demoResultsRef} className="mt-4 space-y-2 max-h-64 overflow-y-auto">
+                {demoAccounts.map((account, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleLogin(account.role)}
+                    className="w-full p-3 bg-neutral-800 hover:bg-neutral-700 rounded text-left text-xs transition border border-neutral-700"
+                  >
+                    <div className="font-semibold text-orange-400">{account.title}</div>
+                    <div className="text-gray-400">{account.email}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* LINKS */}
+          <div className="flex justify-between text-xs text-gray-400 mb-4">
+            <span className="hover:text-orange-400 cursor-pointer transition">
+              Forgot password?
+            </span>
+
+            <span className="hover:text-orange-400 cursor-pointer transition">
+              Emergency access policy
+            </span>
+          </div>
+
+          {/* SECURITY NOTE */}
+          <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-3 text-xs text-gray-400">
+            <div className="flex gap-2">
+              <AlertCircle size={14} className="flex-shrink-0 mt-0.5 text-orange-400" />
+              <p>RBAC enforced: users cannot elevate privilege from UI. Access level is server-authorized.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* REGISTER */}
+        <div className="text-center">
+          <p className="text-sm text-gray-400 mb-3">Don&apos;t have an account?</p>
+          <Link href="/register">
+            <button className="w-full py-3 border border-orange-400 text-orange-400 rounded-lg hover:bg-orange-500/10 transition font-semibold">
+              Create Account
+            </button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+===== FILE: register/page.tsx =====
+
+"use client";
+import Link from "next/link";
+import { useState } from "react";
+import { AlertCircle } from "lucide-react";
+
+export default function RegisterPage() {
+  const [formData, setFormData] = useState({
+    fullName: "",
+    employeeId: "",
+    email: "",
+    requestedRole: "worker",
+    password: "",
+    confirmPassword: "",
+  });
+
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords don't match");
+      return;
+    }
+    setIsSubmitted(true);
+    setTimeout(() => {
+      window.location.href = "/login";
+    }, 3000);
+  };
+
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-white">
+        <div className="text-center">
+          <div className="mb-6 text-6xl">âœ…</div>
+          <h1 className="text-3xl font-bold mb-4">
+            Registration Request Submitted
+          </h1>
+          <p className="text-gray-400 mb-6 max-w-md">
+            Your account request has been submitted for approval. An
+            administrator will review your request and assign a role
+            accordingly.
+          </p>
+          <p className="text-sm text-gray-500">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-white py-12">
+      <div className="w-full max-w-md">
+        {/* LOGO */}
+        <div className="text-center mb-8">
+          <Link href="/">
+            <h1 className="text-3xl font-bold mb-2 hover:text-orange-400 transition">
+              MineOps
+            </h1>
+          </Link>
+          <p className="text-gray-400 text-sm">Create Your Account</p>
+        </div>
+
+        {/* REGISTRATION CARD */}
+        <div className="p-8 bg-neutral-900 rounded-2xl shadow-lg border border-neutral-800">
+          <h2 className="text-2xl font-bold mb-6 text-center">
+            User Registration
+          </h2>
+
+          <p className="text-xs text-gray-400 mb-6 text-center">
+            Account request workflow with admin approval
+          </p>
+
+          {/* FORM */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs text-gray-400 mb-2 block">
+                Full Name
+              </label>
+              <input
+                type="text"
+                name="fullName"
+                placeholder="Enter your full name"
+                required
+                value={formData.fullName}
+                onChange={handleChange}
+                className="w-full p-3 rounded-lg bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-2 block">
+                Employee ID
+              </label>
+              <input
+                type="text"
+                name="employeeId"
+                placeholder="Enter your employee ID"
+                required
+                value={formData.employeeId}
+                onChange={handleChange}
+                className="w-full p-3 rounded-lg bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-2 block">Email</label>
+              <input
+                type="email"
+                name="email"
+                placeholder="Enter your email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full p-3 rounded-lg bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-2 block">
+                Requested Role (Read-Only Request)
+              </label>
+              <select
+                name="requestedRole"
+                value={formData.requestedRole}
+                onChange={handleChange}
+                className="w-full p-3 rounded-lg bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400 text-white"
+              >
+                <option value="worker">Worker</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="safety">Safety Officer</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-2">
+                Final role assignment is made by Admin/Authority policy engine
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-2 block">
+                Create Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                placeholder="Enter secure password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full p-3 rounded-lg bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-2 block">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                name="confirmPassword"
+                placeholder="Confirm your password"
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="w-full p-3 rounded-lg bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400 text-white"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-semibold"
+            >
+              Submit Registration Request
+            </button>
+          </form>
+
+          {/* SECURITY NOTE */}
+          <div className="mt-6 bg-neutral-800 border border-neutral-700 rounded-lg p-3 text-xs text-gray-400">
+            <div className="flex gap-2">
+              <AlertCircle
+                size={14}
+                className="flex-shrink-0 mt-0.5 text-orange-400"
+              />
+              <p>
+                Your final role will be assigned by the system administrator
+                after approval.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* LOGIN LINK */}
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-400 mb-3">Already have an account?</p>
+          <Link href="/login">
+            <button className="w-full py-3 border border-orange-400 text-orange-400 rounded-lg hover:bg-orange-500/10 transition font-semibold">
+              Sign In
+            </button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+===== FILE: tasks/page.tsx =====
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import {
+  CheckCircle2,
+  Circle,
+  AlertCircle,
+  Plus,
+  Filter,
+  Search,
+} from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
+
+export default function TasksPage() {
+  const searchParams = useSearchParams();
+  const role = searchParams.get("role") || "worker";
+
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const tasks = [
+    {
+      id: 1,
+      title: "Ventilation check - Zone C",
+      description: "Inspect and calibrate ventilation sensors",
+      assignedTo: "R. Das",
+      zone: "Zone C",
+      dueDate: "Today",
+      priority: "high",
+      status: "pending",
+    },
+    {
+      id: 2,
+      title: "Equipment maintenance",
+      description: "Regular maintenance of conveyor belt system",
+      assignedTo: "M. Khan",
+      zone: "Zone B",
+      dueDate: "Tomorrow",
+      priority: "medium",
+      status: "in-progress",
+    },
+    {
+      id: 3,
+      title: "Safety briefing",
+      description: "Conduct safety briefing for Team A",
+      assignedTo: "Supervisor",
+      zone: "Main",
+      dueDate: "2 days",
+      priority: "medium",
+      status: "completed",
+    },
+    {
+      id: 4,
+      title: "Tool inventory check",
+      description: "Count and verify all safety equipment",
+      assignedTo: "A. Roy",
+      zone: "Storage",
+      dueDate: "3 days",
+      priority: "low",
+      status: "pending",
+    },
+  ];
+
+  const filteredTasks = tasks.filter((task) => {
+    const matchesSearch = task.title
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      filterStatus === "all" || task.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* HEADER */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Tasks</h2>
+            <p className="text-gray-400">Manage and track work assignments</p>
+          </div>
+          {(role === "supervisor" ||
+            role === "admin" ||
+            role === "authority") && (
+            <button className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg font-semibold transition flex items-center gap-2">
+              <Plus size={20} />
+              Assign Task
+            </button>
+          )}
+        </div>
+
+        {/* STATS */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Total Tasks</p>
+            <p className="text-2xl font-bold text-blue-400">{tasks.length}</p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">In Progress</p>
+            <p className="text-2xl font-bold text-orange-400">
+              {tasks.filter((t) => t.status === "in-progress").length}
+            </p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Pending</p>
+            <p className="text-2xl font-bold text-yellow-400">
+              {tasks.filter((t) => t.status === "pending").length}
+            </p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Completed</p>
+            <p className="text-2xl font-bold text-green-400">
+              {tasks.filter((t) => t.status === "completed").length}
+            </p>
+          </div>
+        </div>
+
+        {/* SEARCH & FILTER */}
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-neutral-900 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
+          <div className="flex gap-2">
+            {["all", "pending", "in-progress", "completed"].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
+                  filterStatus === status
+                    ? "bg-orange-600 text-white"
+                    : "bg-neutral-800 text-gray-400 hover:bg-neutral-700"
+                }`}
+              >
+                {status.replace("-", " ").toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* TASKS GRID */}
+        <div className="grid grid-cols-2 gap-4">
+          {filteredTasks.map((task) => (
+            <div
+              key={task.id}
+              className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 hover:border-orange-600/50 transition"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <button
+                  className={`text-2xl transition hover:scale-110 ${
+                    task.status === "completed"
+                      ? "text-green-400"
+                      : "text-gray-400 hover:text-orange-400"
+                  }`}
+                >
+                  {task.status === "completed" ? (
+                    <CheckCircle2 size={24} />
+                  ) : (
+                    <Circle size={24} />
+                  )}
+                </button>
+                <span
+                  className={`px-3 py-1 rounded text-xs font-semibold ${
+                    task.priority === "high"
+                      ? "bg-red-900/30 text-red-400"
+                      : task.priority === "medium"
+                        ? "bg-yellow-900/30 text-yellow-400"
+                        : "bg-green-900/30 text-green-400"
+                  }`}
+                >
+                  {task.priority.toUpperCase()}
+                </span>
+              </div>
+
+              <h3 className="font-bold text-lg mb-2">{task.title}</h3>
+              <p className="text-sm text-gray-400 mb-4">{task.description}</p>
+
+              <div className="space-y-2 mb-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Zone:</span>
+                  <span className="font-semibold">{task.zone}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Assigned:</span>
+                  <span className="font-semibold">{task.assignedTo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Due:</span>
+                  <span className="font-semibold">{task.dueDate}</span>
+                </div>
+              </div>
+
+              <button
+                className={`w-full py-2 rounded font-semibold text-sm transition ${
+                  task.status === "completed"
+                    ? "bg-neutral-800 text-gray-400"
+                    : "bg-orange-600/20 text-orange-400 border border-orange-600/30 hover:bg-orange-600/30"
+                }`}
+              >
+                {task.status === "completed" ? "Completed" : "View Details"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+===== FILE: incidents/page.tsx =====
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { AlertCircle, Filter, Search } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
+
+export default function IncidentsPage() {
+  const searchParams = useSearchParams();
+  const role = searchParams.get("role") || "worker";
+
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const incidents = [
+    {
+      id: 1,
+      code: "INC-3412",
+      title: "Gas leak report",
+      zone: "Zone C",
+      date: "Today 14:30",
+      severity: "critical",
+      status: "pending-verification",
+      reporter: "R. Das",
+    },
+    {
+      id: 2,
+      code: "INC-3407",
+      title: "PPE violation Team C",
+      zone: "Zone B",
+      date: "Today 12:15",
+      severity: "high",
+      status: "assigned",
+      reporter: "Supervisor",
+    },
+    {
+      id: 3,
+      code: "INC-3398",
+      title: "Equipment heat anomaly",
+      zone: "Zone A",
+      date: "Yesterday 09:45",
+      severity: "medium",
+      status: "escalated",
+      reporter: "M. Khan",
+    },
+    {
+      id: 4,
+      code: "INC-3385",
+      title: "Ventilation warning",
+      zone: "Zone D",
+      date: "2 days ago",
+      severity: "low",
+      status: "resolved",
+      reporter: "Safety Officer",
+    },
+  ];
+
+  const filteredIncidents = incidents.filter((incident) => {
+    const matchesSearch =
+      incident.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      incident.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      filterStatus === "all" || incident.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* HEADER */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Incidents</h2>
+            <p className="text-gray-400">Manage and track safety incidents</p>
+          </div>
+          {(role === "worker" || role === "supervisor") && (
+            <Link href={`/incidents/report?role=${role}`}>
+              <button className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg font-semibold transition">
+                + Report Incident
+              </button>
+            </Link>
+          )}
+        </div>
+
+        {/* SEARCH & FILTER */}
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Search incidents..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-neutral-900 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
+          <div className="flex gap-2">
+            {[
+              "all",
+              "pending-verification",
+              "assigned",
+              "escalated",
+              "resolved",
+            ].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
+                  filterStatus === status
+                    ? "bg-orange-600 text-white"
+                    : "bg-neutral-800 text-gray-400 hover:bg-neutral-700"
+                }`}
+              >
+                {status.replace("-", " ").toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* STATS */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Total Incidents</p>
+            <p className="text-2xl font-bold text-blue-400">
+              {incidents.length}
+            </p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Critical</p>
+            <p className="text-2xl font-bold text-red-400">
+              {incidents.filter((i) => i.severity === "critical").length}
+            </p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Open</p>
+            <p className="text-2xl font-bold text-orange-400">
+              {incidents.filter((i) => i.status !== "resolved").length}
+            </p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Resolved</p>
+            <p className="text-2xl font-bold text-green-400">
+              {incidents.filter((i) => i.status === "resolved").length}
+            </p>
+          </div>
+        </div>
+
+        {/* INCIDENTS TABLE */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-neutral-800">
+                <tr className="text-gray-400 text-sm">
+                  <th className="text-left py-3 px-4">Incident</th>
+                  <th className="text-left py-3 px-4">Zone</th>
+                  <th className="text-left py-3 px-4">Date</th>
+                  <th className="text-left py-3 px-4">Severity</th>
+                  <th className="text-left py-3 px-4">Status</th>
+                  <th className="text-left py-3 px-4">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-800">
+                {filteredIncidents.map((incident) => (
+                  <tr
+                    key={incident.id}
+                    className="hover:bg-neutral-800/50 transition"
+                  >
+                    <td className="py-4 px-4">
+                      <Link href={`/incidents/${incident.id}?role=${role}`}>
+                        <div className="cursor-pointer hover:text-orange-400 transition">
+                          <p className="font-semibold text-sm">
+                            {incident.code}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {incident.title}
+                          </p>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="py-4 px-4 text-sm">{incident.zone}</td>
+                    <td className="py-4 px-4 text-sm text-gray-400">
+                      {incident.date}
+                    </td>
+                    <td className="py-4 px-4">
+                      <span
+                        className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
+                          incident.severity === "critical"
+                            ? "bg-red-900/30 text-red-400"
+                            : incident.severity === "high"
+                              ? "bg-orange-900/30 text-orange-400"
+                              : incident.severity === "medium"
+                                ? "bg-yellow-900/30 text-yellow-400"
+                                : "bg-green-900/30 text-green-400"
+                        }`}
+                      >
+                        {incident.severity.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span
+                        className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
+                          incident.status === "resolved"
+                            ? "bg-green-900/30 text-green-400"
+                            : incident.status === "escalated"
+                              ? "bg-red-900/30 text-red-400"
+                              : incident.status === "assigned"
+                                ? "bg-blue-900/30 text-blue-400"
+                                : "bg-yellow-900/30 text-yellow-400"
+                        }`}
+                      >
+                        {incident.status.replace("-", " ").toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <Link href={`/incidents/${incident.id}?role=${role}`}>
+                        <button className="text-orange-400 hover:text-orange-300 text-sm font-semibold">
+                          View Details
+                        </button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+===== FILE: incidents/report/page.tsx =====
+
+/* eslint-disable react-hooks/purity */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { AlertCircle, Plus, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
+
+export default function ReportIncidentPage() {
+  const searchParams = useSearchParams();
+  const role = searchParams.get("role") || "worker";
+
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    zone: "Zone A",
+    severity: "medium",
+    type: "safety-hazard",
+  });
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitted(true);
+    setTimeout(() => {
+      setSubmitted(false);
+      setFormData({
+        title: "",
+        description: "",
+        zone: "Zone A",
+        severity: "medium",
+        type: "safety-hazard",
+      });
+    }, 2000);
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* HEADER */}
+        <div>
+          <Link
+            href={`/dashboard/${role}?role=${role}`}
+            className="text-orange-400 hover:text-orange-300 text-sm mb-4 inline-block"
+          >
+            â† Back to Dashboard
+          </Link>
+          <h2 className="text-3xl font-bold mb-2">Report Incident</h2>
+          <p className="text-gray-400">
+            Report a safety concern or hazard immediately
+          </p>
+        </div>
+
+        {submitted ? (
+          <div className="bg-green-900/20 border border-green-700 p-8 rounded-xl text-center">
+            <div className="text-4xl mb-4">âœ“</div>
+            <h3 className="text-2xl font-bold text-green-400 mb-2">
+              Incident Reported
+            </h3>
+            <p className="text-gray-400">
+              Your incident report has been submitted. Reference:{" "}
+              <span className="font-semibold text-white">
+                INC-{Math.random().toString(36).substring(7).toUpperCase()}
+              </span>
+            </p>
+          </div>
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="bg-neutral-900 border border-neutral-800 rounded-xl p-8 space-y-6"
+          >
+            {/* INCIDENT TYPE */}
+            <div>
+              <label className="block text-sm font-semibold mb-2">
+                Incident Type *
+              </label>
+              <select
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                required
+                className="w-full p-3 bg-neutral-800 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+              >
+                <option value="safety-hazard">Safety Hazard</option>
+                <option value="equipment-malfunction">
+                  Equipment Malfunction
+                </option>
+                <option value="near-miss">Near Miss</option>
+                <option value="injury">Injury</option>
+                <option value="environmental">Environmental Issue</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            {/* TITLE */}
+            <div>
+              <label className="block text-sm font-semibold mb-2">
+                Incident Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                placeholder="Brief description of the incident"
+                value={formData.title}
+                onChange={handleChange}
+                required
+                className="w-full p-3 bg-neutral-800 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+            </div>
+
+            {/* DESCRIPTION */}
+            <div>
+              <label className="block text-sm font-semibold mb-2">
+                Detailed Description *
+              </label>
+              <textarea
+                name="description"
+                placeholder="Provide detailed information about the incident..."
+                value={formData.description}
+                onChange={handleChange}
+                required
+                rows={5}
+                className="w-full p-3 bg-neutral-800 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+              />
+            </div>
+
+            {/* ZONE & SEVERITY */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold mb-2">
+                  Zone *
+                </label>
+                <select
+                  name="zone"
+                  value={formData.zone}
+                  onChange={handleChange}
+                  required
+                  className="w-full p-3 bg-neutral-800 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                >
+                  <option value="Zone A">Zone A</option>
+                  <option value="Zone B">Zone B</option>
+                  <option value="Zone C">Zone C</option>
+                  <option value="Zone D">Zone D</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2">
+                  Severity *
+                </label>
+                <select
+                  name="severity"
+                  value={formData.severity}
+                  onChange={handleChange}
+                  required
+                  className="w-full p-3 bg-neutral-800 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+            </div>
+
+            {/* SUBMIT */}
+            <div className="flex gap-3 pt-4">
+              <button
+                type="submit"
+                className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg font-semibold transition"
+              >
+                Submit Incident Report
+              </button>
+              <Link href={`/dashboard/${role}?role=${role}`}>
+                <button
+                  type="button"
+                  className="px-6 py-3 bg-neutral-800 hover:bg-neutral-700 rounded-lg font-semibold transition"
+                >
+                  Cancel
+                </button>
+              </Link>
+            </div>
+
+            <p className="text-xs text-gray-400 text-center">
+              Your report is confidential and will be reviewed by the safety
+              team.
+            </p>
+          </form>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
+
+===== FILE: incidents/review/page.tsx =====
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { AlertCircle, CheckCircle2, Clock, MessageSquare } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
+
+export default function IncidentReviewPage() {
+  const searchParams = useSearchParams();
+  const role = searchParams.get("role") || "worker";
+
+  const [filterStatus, setFilterStatus] = useState("pending");
+  const [selectedIncident, setSelectedIncident] = useState<number | null>(null);
+
+  const incidents = [
+    {
+      id: 1,
+      code: "INC-3412",
+      title: "Gas leak report",
+      zone: "Zone C",
+      date: "Today 14:30",
+      severity: "critical",
+      status: "pending",
+      reporter: "R. Das",
+      description: "Strong gas smell detected near ventilation shaft",
+    },
+    {
+      id: 2,
+      code: "INC-3407",
+      title: "PPE violation Team C",
+      zone: "Zone B",
+      date: "Today 12:15",
+      severity: "high",
+      status: "assigned",
+      reporter: "Supervisor",
+      description: "Worker found without proper safety gear",
+    },
+    {
+      id: 3,
+      code: "INC-3398",
+      title: "Equipment heat anomaly",
+      zone: "Zone A",
+      date: "Yesterday 09:45",
+      severity: "medium",
+      status: "assigned",
+      reporter: "M. Khan",
+      description: "Pump showing abnormal temperature readings",
+    },
+  ];
+
+  const filteredIncidents = incidents.filter((i) => i.status === filterStatus);
+  const current =
+    selectedIncident !== null
+      ? incidents.find((i) => i.id === selectedIncident)
+      : filteredIncidents[0];
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* HEADER */}
+        <div>
+          <Link
+            href={`/dashboard/${role}?role=${role}`}
+            className="text-orange-400 hover:text-orange-300 text-sm mb-4 inline-block"
+          >
+            â† Back to Dashboard
+          </Link>
+          <h2 className="text-3xl font-bold mb-2">
+            Incident Review & Verification
+          </h2>
+          <p className="text-gray-400">Review and verify reported incidents</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-6">
+          {/* INCIDENT LIST */}
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              {["pending", "assigned", "resolved"].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
+                  className={`px-3 py-2 rounded text-sm font-semibold transition ${
+                    filterStatus === status
+                      ? "bg-orange-600 text-white"
+                      : "bg-neutral-800 text-gray-400 hover:bg-neutral-700"
+                  }`}
+                >
+                  {status.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {filteredIncidents.map((inc) => (
+                <button
+                  key={inc.id}
+                  onClick={() => setSelectedIncident(inc.id)}
+                  className={`w-full text-left p-3 rounded-lg border transition ${
+                    selectedIncident === inc.id
+                      ? "bg-orange-900/30 border-orange-600"
+                      : "bg-neutral-800 border-neutral-700 hover:border-orange-600"
+                  }`}
+                >
+                  <p className="font-semibold text-sm">{inc.code}</p>
+                  <p className="text-xs text-gray-400 mt-1">{inc.title}</p>
+                  <span
+                    className={`inline-block text-xs font-semibold mt-2 px-2 py-1 rounded ${
+                      inc.severity === "critical"
+                        ? "bg-red-900/30 text-red-400"
+                        : inc.severity === "high"
+                          ? "bg-orange-900/30 text-orange-400"
+                          : "bg-yellow-900/30 text-yellow-400"
+                    }`}
+                  >
+                    {inc.severity.toUpperCase()}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* INCIDENT DETAIL */}
+          {current && (
+            <div className="col-span-2 bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-6">
+              {/* HEADER */}
+              <div>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-gray-400 mb-2">{current.code}</p>
+                    <h3 className="text-2xl font-bold">{current.title}</h3>
+                  </div>
+                  <span
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                      current.severity === "critical"
+                        ? "bg-red-900/30 text-red-400"
+                        : current.severity === "high"
+                          ? "bg-orange-900/30 text-orange-400"
+                          : "bg-yellow-900/30 text-yellow-400"
+                    }`}
+                  >
+                    {current.severity.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+
+              {/* DETAILS */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-3 bg-neutral-800 rounded-lg">
+                  <p className="text-xs text-gray-400 mb-1">Zone</p>
+                  <p className="font-semibold">{current.zone}</p>
+                </div>
+                <div className="p-3 bg-neutral-800 rounded-lg">
+                  <p className="text-xs text-gray-400 mb-1">Date & Time</p>
+                  <p className="font-semibold text-sm">{current.date}</p>
+                </div>
+                <div className="p-3 bg-neutral-800 rounded-lg">
+                  <p className="text-xs text-gray-400 mb-1">Reporter</p>
+                  <p className="font-semibold">{current.reporter}</p>
+                </div>
+              </div>
+
+              {/* DESCRIPTION */}
+              <div>
+                <h4 className="font-bold mb-2">Description</h4>
+                <p className="text-gray-300">{current.description}</p>
+              </div>
+
+              {/* VERIFICATION SECTION */}
+              {current.status === "pending" && (
+                <div className="border-t border-neutral-700 pt-6">
+                  <h4 className="font-bold mb-4">Verification Required</h4>
+                  <div className="space-y-3">
+                    <textarea
+                      placeholder="Verification notes..."
+                      rows={4}
+                      className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <button className="py-3 bg-green-900/30 text-green-400 border border-green-700 rounded-lg hover:bg-green-900/50 transition font-semibold">
+                        âœ“ Approve
+                      </button>
+                      <button className="py-3 bg-red-900/30 text-red-400 border border-red-700 rounded-lg hover:bg-red-900/50 transition font-semibold">
+                        âœ— Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STATUS SECTION */}
+              {current.status !== "pending" && (
+                <div className="border-t border-neutral-700 pt-6">
+                  <h4 className="font-bold mb-4">Current Status</h4>
+                  <div className="p-4 bg-neutral-800 rounded-lg">
+                    <span
+                      className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
+                        current.status === "assigned"
+                          ? "bg-blue-900/30 text-blue-400"
+                          : "bg-green-900/30 text-green-400"
+                      }`}
+                    >
+                      {current.status.replace("-", " ").toUpperCase()}
+                    </span>
+                    <p className="text-sm text-gray-400 mt-2">
+                      {current.status === "assigned" &&
+                        "Assigned to Safety Officer for investigation"}
+                      {current.status === "resolved" &&
+                        "This incident has been resolved"}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+===== FILE: alerts/page.tsx =====
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import { Suspense } from "react";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { Bell, CheckCircle2, AlertTriangle, Info } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+
+function AlertsContent() {
+  const searchParams = useSearchParams();
+  const role = searchParams.get("role") || "worker";
+
+  const [filterType, setFilterType] = useState("all");
+  const [dismissedAlerts, setDismissedAlerts] = useState<number[]>([]);
+
+  const alerts = [
+    {
+      id: 1,
+      type: "critical",
+      title: "CRITICAL: Methane level critical in Zone C",
+      message:
+        "Gas concentration has reached dangerous levels. Immediate evacuation may be required.",
+      zone: "Zone C",
+      time: "Just now",
+      action: "View Details",
+    },
+    {
+      id: 2,
+      type: "warning",
+      title: "Equipment malfunction detected",
+      message:
+        "Ventilation system in Zone B showing unusual temperature readings.",
+      zone: "Zone B",
+      time: "5 minutes ago",
+      action: "Investigate",
+    },
+    {
+      id: 3,
+      type: "alert",
+      title: "Staff shortage warning",
+      message: "Team C is operating below minimum staffing requirements.",
+      zone: "Team C",
+      time: "15 minutes ago",
+      action: "Assign Personnel",
+    },
+    {
+      id: 4,
+      type: "info",
+      title: "Maintenance window scheduled",
+      message: "Zone A will be under maintenance from 18:00 to 20:00 today.",
+      zone: "Zone A",
+      time: "2 hours ago",
+      action: "Acknowledge",
+    },
+    {
+      id: 5,
+      type: "info",
+      title: "Shift briefing completed",
+      message: "All safety briefings for the day shift have been completed.",
+      zone: "Main",
+      time: "4 hours ago",
+      action: "View Report",
+    },
+  ];
+
+  const filteredAlerts = alerts.filter((alert) => {
+    const matchesType = filterType === "all" || alert.type === filterType;
+    return matchesType && !dismissedAlerts.includes(alert.id);
+  });
+
+  const dismissAlert = (id: number) => {
+    setDismissedAlerts([...dismissedAlerts, id]);
+  };
+
+  const alertCounts = {
+    critical: alerts.filter((a) => a.type === "critical").length,
+    warning: alerts.filter((a) => a.type === "warning").length,
+    alert: alerts.filter((a) => a.type === "alert").length,
+    info: alerts.filter((a) => a.type === "info").length,
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* HEADER */}
+      <div>
+        <h2 className="text-3xl font-bold mb-2">Alerts & Notifications</h2>
+        <p className="text-gray-400">
+          System alerts and important notifications
+        </p>
+      </div>
+
+      {/* STATS */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="p-4 bg-red-900/20 border border-red-700 rounded-xl">
+          <p className="text-xs text-gray-400 mb-1">Critical</p>
+          <p className="text-2xl font-bold text-red-400">
+            {alertCounts.critical}
+          </p>
+        </div>
+        <div className="p-4 bg-orange-900/20 border border-orange-700 rounded-xl">
+          <p className="text-xs text-gray-400 mb-1">Warnings</p>
+          <p className="text-2xl font-bold text-orange-400">
+            {alertCounts.warning}
+          </p>
+        </div>
+        <div className="p-4 bg-yellow-900/20 border border-yellow-700 rounded-xl">
+          <p className="text-xs text-gray-400 mb-1">Alerts</p>
+          <p className="text-2xl font-bold text-yellow-400">
+            {alertCounts.alert}
+          </p>
+        </div>
+        <div className="p-4 bg-blue-900/20 border border-blue-700 rounded-xl">
+          <p className="text-xs text-gray-400 mb-1">Info</p>
+          <p className="text-2xl font-bold text-blue-400">{alertCounts.info}</p>
+        </div>
+      </div>
+
+      {/* FILTERS */}
+      <div className="flex gap-2">
+        {["all", "critical", "warning", "alert", "info"].map((type) => (
+          <button
+            key={type}
+            onClick={() => setFilterType(type)}
+            className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
+              filterType === type
+                ? "bg-orange-600 text-white"
+                : "bg-neutral-800 text-gray-400 hover:bg-neutral-700"
+            }`}
+          >
+            {type.replace("-", " ").toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {/* ALERTS LIST */}
+      <div className="space-y-4">
+        {filteredAlerts.map((alert) => (
+          <div
+            key={alert.id}
+            className={`p-5 rounded-xl border ${
+              alert.type === "critical"
+                ? "bg-red-900/20 border-red-700"
+                : alert.type === "warning"
+                  ? "bg-orange-900/20 border-orange-700"
+                  : alert.type === "alert"
+                    ? "bg-yellow-900/20 border-yellow-700"
+                    : "bg-blue-900/20 border-blue-700"
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4 flex-1">
+                <div
+                  className={`mt-1 ${
+                    alert.type === "critical"
+                      ? "text-red-400"
+                      : alert.type === "warning"
+                        ? "text-orange-400"
+                        : alert.type === "alert"
+                          ? "text-yellow-400"
+                          : "text-blue-400"
+                  }`}
+                >
+                  {alert.type === "critical" ? (
+                    <AlertTriangle size={20} />
+                  ) : alert.type === "info" ? (
+                    <Info size={20} />
+                  ) : (
+                    <Bell size={20} />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg mb-2">{alert.title}</h3>
+                  <p className="text-sm text-gray-300 mb-3">{alert.message}</p>
+                  <div className="flex items-center gap-4 text-xs text-gray-400">
+                    <span>
+                      Zone:{" "}
+                      <span className="text-white font-semibold">
+                        {alert.zone}
+                      </span>
+                    </span>
+                    <span>{alert.time}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <button
+                  className={`px-4 py-2 rounded font-semibold text-sm transition ${
+                    alert.type === "critical"
+                      ? "bg-red-600/30 hover:bg-red-600/50 text-red-300"
+                      : alert.type === "warning"
+                        ? "bg-orange-600/30 hover:bg-orange-600/50 text-orange-300"
+                        : "bg-neutral-700 hover:bg-neutral-600 text-gray-300"
+                  }`}
+                >
+                  {alert.action}
+                </button>
+                <button
+                  onClick={() => dismissAlert(alert.id)}
+                  className="px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-gray-300 transition"
+                >
+                  âœ•
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filteredAlerts.length === 0 && (
+        <div className="text-center py-12">
+          <Bell size={48} className="mx-auto text-gray-600 mb-4" />
+          <p className="text-gray-400 text-lg">No alerts to display</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AlertsPage() {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={<div>Loading alerts...</div>}>
+        <AlertsContent />
+      </Suspense>
+    </DashboardLayout>
+  );
+}
+
+===== FILE: dashboard/worker/page.tsx =====
+
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import {
+  AlertTriangle,
+  Briefcase,
+  CheckCircle2,
+  Clock,
+  MapPin,
+  AlertCircle,
+} from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+
+export default function WorkerDashboard() {
+  const [checkInTime, setCheckInTime] = useState<string | null>("08:15 AM");
+  const [activeTab, setActiveTab] = useState("overview");
+
+  const tasks = [
+    {
+      id: 1,
+      title: "Zone C Patrol",
+      status: "pending",
+      zone: "Zone C",
+      priority: "high",
+    },
+    {
+      id: 2,
+      title: "Equipment Check",
+      status: "in-progress",
+      zone: "Zone A",
+      priority: "medium",
+    },
+    {
+      id: 3,
+      title: "Shift Briefing",
+      status: "completed",
+      zone: "Main",
+      priority: "medium",
+    },
+  ];
+
+  const alerts = [
+    { time: "08:15", message: "Helmet compliance reminder", type: "warning" },
+    { time: "07:40", message: "Safety briefing updated", type: "info" },
+    {
+      time: "06:30",
+      message: "Critical: Zone C ventilation check due in 20 minutes",
+      type: "critical",
+    },
+  ];
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* CRITICAL ALERT */}
+        <div className="bg-red-900/30 border border-red-700 p-4 rounded-xl flex items-start gap-3">
+          <AlertTriangle
+            className="text-red-500 flex-shrink-0 mt-0.5"
+            size={20}
+          />
+          <div>
+            <h3 className="font-semibold text-red-400">ðŸš¨ CRITICAL ALERT</h3>
+            <p className="text-sm text-red-200">
+              Zone C ventilation check due in 20 minutes. Report immediately if
+              issues detected.
+            </p>
+          </div>
+        </div>
+
+        {/* QUICK ACTIONS */}
+        <div className="grid grid-cols-2 gap-4">
+          <Link href="/incidents/report?role=worker">
+            <div className="p-6 bg-orange-900/30 border border-orange-700 rounded-xl hover:bg-orange-900/50 cursor-pointer transition">
+              <AlertCircle className="text-orange-500 mb-2" size={24} />
+              <h3 className="font-semibold">Report Incident</h3>
+              <p className="text-xs text-gray-400">One tap report</p>
+            </div>
+          </Link>
+
+          <div className="p-6 bg-green-900/30 border border-green-700 rounded-xl hover:bg-green-900/50 cursor-pointer transition">
+            <CheckCircle2 className="text-green-500 mb-2" size={24} />
+            <h3 className="font-semibold">Check-in / Check-out</h3>
+            <p className="text-xs text-gray-400">Shift attendance</p>
+          </div>
+
+          <Link href="/tasks?role=worker">
+            <div className="p-6 bg-blue-900/30 border border-blue-700 rounded-xl hover:bg-blue-900/50 cursor-pointer transition">
+              <Briefcase className="text-blue-500 mb-2" size={24} />
+              <h3 className="font-semibold">View Tasks</h3>
+              <p className="text-xs text-gray-400">
+                Today: {tasks.length} assigned
+              </p>
+            </div>
+          </Link>
+
+          <Link href="/alerts?role=worker">
+            <div className="p-6 bg-purple-900/30 border border-purple-700 rounded-xl hover:bg-purple-900/50 cursor-pointer transition">
+              <Clock className="text-purple-500 mb-2" size={24} />
+              <h3 className="font-semibold">My Alerts</h3>
+              <p className="text-xs text-gray-400">{alerts.length} active</p>
+            </div>
+          </Link>
+        </div>
+
+        {/* CURRENT STATUS */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-2">Current Status</p>
+            <p className="text-lg font-semibold text-green-400">âœ“ On Shift</p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-2">Check-in Time</p>
+            <p className="text-lg font-semibold">{checkInTime}</p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-2">Zone Assigned</p>
+            <p className="text-lg font-semibold text-orange-400">Zone C</p>
+          </div>
+        </div>
+
+        {/* TASKS */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+          <h3 className="text-xl font-bold mb-4">Today's Tasks</h3>
+          <div className="space-y-3">
+            {tasks.map((task) => (
+              <div
+                key={task.id}
+                className="p-4 bg-neutral-800 rounded-lg flex items-center justify-between hover:bg-neutral-700 transition"
+              >
+                <div className="flex-1">
+                  <p className="font-semibold">{task.title}</p>
+                  <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <MapPin size={12} /> {task.zone}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded ${
+                        task.priority === "high"
+                          ? "bg-red-900/30 text-red-300"
+                          : task.priority === "medium"
+                            ? "bg-yellow-900/30 text-yellow-300"
+                            : "bg-green-900/30 text-green-300"
+                      }`}
+                    >
+                      {task.priority.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className={`text-xs font-semibold ${
+                    task.status === "completed"
+                      ? "text-green-400"
+                      : task.status === "in-progress"
+                        ? "text-orange-400"
+                        : "text-gray-400"
+                  }`}
+                >
+                  {task.status.replace("-", " ").toUpperCase()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ALERTS FEED */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+          <h3 className="text-xl font-bold mb-4">Recent Alerts</h3>
+          <div className="space-y-3">
+            {alerts.map((alert, idx) => (
+              <div
+                key={idx}
+                className={`p-4 rounded-lg border ${
+                  alert.type === "critical"
+                    ? "bg-red-900/20 border-red-700"
+                    : alert.type === "warning"
+                      ? "bg-yellow-900/20 border-yellow-700"
+                      : "bg-blue-900/20 border-blue-700"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-gray-400">
+                    {alert.time}
+                  </span>
+                  <p className="text-sm">{alert.message}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+===== FILE: dashboard/supervisor/page.tsx =====
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { Users, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import Link from "next/link";
+
+export default function SupervisorDashboard() {
+  const teamMembers = [
+    {
+      name: "R. Das",
+      status: "Active",
+      task: "Belt Inspection",
+      attendance: "Present",
+    },
+    {
+      name: "M. Khan",
+      status: "Break",
+      task: "Conveyor Check",
+      attendance: "Present",
+    },
+    {
+      name: "P. Kumar",
+      status: "Delayed",
+      task: "Zone C Patrol",
+      attendance: "Late",
+    },
+    {
+      name: "A. Roy",
+      status: "Active",
+      task: "Drill Prep",
+      attendance: "Present",
+    },
+  ];
+
+  const tasks = [
+    { id: 1, title: "Ventilation audit", status: "pending" },
+    { id: 2, title: "Zone B sensor install", status: "pending" },
+    { id: 3, title: "Pump check", status: "in-progress" },
+    { id: 4, title: "Attendance reconciliation", status: "in-progress" },
+    { id: 5, title: "Shift handover", status: "completed" },
+    { id: 6, title: "PPE checklist", status: "completed" },
+  ];
+
+  const incidents = [
+    {
+      id: 1,
+      title: "Slippage near Shaft 2",
+      severity: "critical",
+      team: "Team A",
+    },
+    { id: 2, title: "PPE violation Team C", severity: "open", team: "Team C" },
+    {
+      id: 3,
+      title: "Ventilation warning",
+      severity: "resolved",
+      team: "Team B",
+    },
+  ];
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* HEADER */}
+        <div>
+          <h2 className="text-3xl font-bold mb-2">Supervisor Control Deck</h2>
+          <p className="text-gray-400">
+            Manage your team, tasks, and incidents
+          </p>
+        </div>
+
+        {/* QUICK STATS */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Team Members</p>
+            <p className="text-2xl font-bold text-orange-400">
+              {teamMembers.length}
+            </p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Active Tasks</p>
+            <p className="text-2xl font-bold text-blue-400">3</p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Open Incidents</p>
+            <p className="text-2xl font-bold text-red-400">2</p>
+          </div>
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Attendance Today</p>
+            <p className="text-2xl font-bold text-green-400">28/32</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          {/* TEAM TABLE */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Users size={20} />
+              Team Overview
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-gray-400 border-b border-neutral-800">
+                    <th className="text-left py-2 px-2">Name</th>
+                    <th className="text-left py-2 px-2">Status</th>
+                    <th className="text-left py-2 px-2">Task</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamMembers.map((member, idx) => (
+                    <tr
+                      key={idx}
+                      className="border-b border-neutral-800 hover:bg-neutral-800/50 transition"
+                    >
+                      <td className="py-3 px-2 font-semibold">{member.name}</td>
+                      <td className="py-3 px-2">
+                        <span
+                          className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                            member.status === "Active"
+                              ? "bg-green-900/30 text-green-400"
+                              : member.status === "Break"
+                                ? "bg-yellow-900/30 text-yellow-400"
+                                : "bg-red-900/30 text-red-400"
+                          }`}
+                        >
+                          {member.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-gray-400">{member.task}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* INCIDENTS LIST */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <AlertCircle size={20} />
+              Team Incidents
+            </h3>
+            <div className="space-y-3">
+              {incidents.map((incident) => (
+                <Link key={incident.id} href={`/incidents?role=supervisor`}>
+                  <div
+                    className="p-3 rounded-lg border hover:bg-neutral-800 transition cursor-pointer"
+                    style={{
+                      borderColor:
+                        incident.severity === "critical"
+                          ? "#dc2626"
+                          : incident.severity === "open"
+                            ? "#f59e0b"
+                            : "#10b981",
+                      backgroundColor:
+                        incident.severity === "critical"
+                          ? "rgba(220, 38, 38, 0.1)"
+                          : incident.severity === "open"
+                            ? "rgba(245, 158, 11, 0.1)"
+                            : "rgba(16, 185, 129, 0.1)",
+                    }}
+                  >
+                    <p className="font-semibold text-sm">{incident.title}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {incident.team} â€¢ {incident.severity.toUpperCase()}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* TASK MANAGEMENT */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+          <h3 className="text-xl font-bold mb-4">Task Management (Kanban)</h3>
+          <div className="grid grid-cols-3 gap-4">
+            {/* PENDING */}
+            <div className="bg-neutral-800 rounded-lg p-4">
+              <h4 className="font-semibold mb-3 text-red-400">Pending</h4>
+              <div className="space-y-2">
+                {tasks
+                  .filter((t) => t.status === "pending")
+                  .map((task) => (
+                    <div
+                      key={task.id}
+                      className="bg-neutral-700 p-3 rounded hover:bg-neutral-600 transition cursor-pointer"
+                    >
+                      <p className="text-sm">{task.title}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* IN PROGRESS */}
+            <div className="bg-neutral-800 rounded-lg p-4">
+              <h4 className="font-semibold mb-3 text-orange-400">
+                In Progress
+              </h4>
+              <div className="space-y-2">
+                {tasks
+                  .filter((t) => t.status === "in-progress")
+                  .map((task) => (
+                    <div
+                      key={task.id}
+                      className="bg-neutral-700 p-3 rounded hover:bg-neutral-600 transition cursor-pointer"
+                    >
+                      <p className="text-sm">{task.title}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* COMPLETED */}
+            <div className="bg-neutral-800 rounded-lg p-4">
+              <h4 className="font-semibold mb-3 text-green-400">Completed</h4>
+              <div className="space-y-2">
+                {tasks
+                  .filter((t) => t.status === "completed")
+                  .map((task) => (
+                    <div
+                      key={task.id}
+                      className="bg-neutral-700 p-3 rounded hover:bg-neutral-600 transition cursor-pointer opacity-70"
+                    >
+                      <p className="text-sm line-through">{task.title}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
