@@ -32,6 +32,7 @@ export default function RolesScreen() {
   const params = useLocalSearchParams<{ role?: string }>();
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
+  const showMatrix = selectedRole.key !== 'admin';
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
@@ -97,30 +98,32 @@ export default function RolesScreen() {
           ))}
         </View>
 
-        <View style={[styles.sectionCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
-          <ThemedText type="subtitle">Permission Matrix</ThemedText>
-          <View style={styles.matrixList}>
-            {MATRIX.map((item) => (
-              <View key={item.feature} style={[styles.matrixRow, { borderBottomColor: palette.border }]}>
-                <ThemedText style={styles.matrixFeature}>{item.feature}</ThemedText>
-                <View style={styles.matrixFlags}>
-                  {item.perms.map((allowed, index) => (
-                    <View key={index} style={[styles.matrixFlag, { backgroundColor: allowed ? palette.success + '22' : palette.surface }]}>
-                      <ThemedText style={{ color: allowed ? palette.success : palette.muted, fontSize: 11, fontWeight: '800' }}>
-                        {allowed ? '✓' : '✕'}
-                      </ThemedText>
-                    </View>
-                  ))}
+        {showMatrix ? (
+          <View style={[styles.sectionCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
+            <ThemedText type="subtitle">Permission Matrix</ThemedText>
+            <View style={styles.matrixList}>
+              {MATRIX.map((item) => (
+                <View key={item.feature} style={[styles.matrixRow, { borderBottomColor: palette.border }]}>
+                  <ThemedText style={styles.matrixFeature}>{item.feature}</ThemedText>
+                  <View style={styles.matrixFlags}>
+                    {item.perms.map((allowed, index) => (
+                      <View key={index} style={[styles.matrixFlag, { backgroundColor: allowed ? palette.success + '22' : palette.surface }]}>
+                        <ThemedText style={{ color: allowed ? palette.success : palette.muted, fontSize: 11, fontWeight: '800' }}>
+                          {allowed ? '✓' : '✕'}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))}
+            </View>
+            <View style={styles.matrixLegend}>
+              {['Worker', 'Supervisor', 'Safety', 'Admin', 'Authority'].map((label) => (
+                <ThemedText key={label} style={{ color: palette.muted, fontSize: 11, fontWeight: '700' }}>{label}</ThemedText>
+              ))}
+            </View>
           </View>
-          <View style={styles.matrixLegend}>
-            {['Worker', 'Supervisor', 'Safety', 'Admin', 'Authority'].map((label) => (
-              <ThemedText key={label} style={{ color: palette.muted, fontSize: 11, fontWeight: '700' }}>{label}</ThemedText>
-            ))}
-          </View>
-        </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -131,6 +134,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
   backButton: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  pressed: { opacity: 0.75 },
   topMeta: { alignItems: 'flex-end', flex: 1 },
   brand: { marginBottom: 2 },
   headerBlock: { marginBottom: 14 },
