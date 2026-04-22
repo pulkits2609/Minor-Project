@@ -1,13 +1,16 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
-import { type ComponentProps, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { type ComponentProps, useState, useEffect } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
-import { type MineOpsRoleKey, homeMetrics, liveAlerts, roleProfiles } from '@/constants/mineops';
+import { loadAuthState, setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
+import { type MineOpsRoleKey, homeMetrics as defaultMetrics, liveAlerts as defaultAlerts, roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { globalAuthToken, globalUserRole } from '@/constants/auth';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 type IconName = ComponentProps<typeof MaterialIcons>['name'];
 type Palette = typeof Colors.dark;
@@ -90,8 +93,87 @@ export default function RoleDashboardScreen() {
   const params = useLocalSearchParams<{ role?: string }>();
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
-  const shortcuts = roleQuickActions[selectedRole.key];
-  const menuItems = roleMenuItems[selectedRole.key];
+  const shortcuts = roleQuickActions[selectedRole.key as MineOpsRoleKey];
+  const menuItems = roleMenuItems[selectedRole.key as MineOpsRoleKey];
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [dynamicMetrics, setDynamicMetrics] = useState(defaultMetrics);
+  const [dynamicAlerts, setDynamicAlerts] = useState(defaultAlerts);
+
+  useProtectedRoute(); // Ensure logged in
+
+  useEffect(() => {
+    // If the requested role doesn't match the logged-in user role, redirect to their actual dashboard
+    if (globalUserRole && roleValue !== globalUserRole) {
+      router.replace({ pathname: '/dashboard/[role]', params: { role: globalUserRole } });
+      return;
+    }
+
+    async function fetchDashboardData() {
+      if (!globalAuthToken) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
+          headers: {
+            'Authorization': `Bearer ${globalAuthToken}`,
+          },
+        });
+        
+        if (response.ok) {
+          const { data, role } = await response.json();
+          const newMetrics = [];
+          
+          if (role === 'worker' && data) {
+            newMetrics.push({ label: 'Tasks', value: (data.tasks?.length || 0).toString(), detail: 'Assigned tasks', tone: 'neutral' as const, icon: 'assignment' });
+            newMetrics.push({ label: 'Status', value: data.current_status?.shift_status === 'on_shift' ? 'Active' : 'Off', detail: `Zone: ${data.current_status?.zone || 'N/A'}`, tone: 'success' as const, icon: 'check-circle' });
+          } else if (role === 'supervisor' && data) {
+            newMetrics.push({ label: 'Team', value: (data.stats?.total_team || 0).toString(), detail: 'Active workers', tone: 'success' as const, icon: 'groups' });
+            newMetrics.push({ label: 'Tasks', value: (data.stats?.active_tasks || 0).toString(), detail: 'Active tasks', tone: 'warning' as const, icon: 'assignment' });
+            newMetrics.push({ label: 'Incidents', value: (data.stats?.open_incidents || 0).toString(), detail: 'Open issues', tone: 'danger' as const, icon: 'report' });
+          } else if (role === 'safety_officer' && data) {
+            newMetrics.push({ label: 'Pending', value: (data.pending_incidents?.length || 0).toString(), detail: 'Pending incidents', tone: 'danger' as const, icon: 'warning' });
+            newMetrics.push({ label: 'Hazards', value: (data.critical_hazards?.length || 0).toString(), detail: 'Critical hazards', tone: 'danger' as const, icon: 'report' });
+          } else if (role === 'admin' && data) {
+            newMetrics.push({ label: 'Users', value: (data.total_users || 0).toString(), detail: 'Total users', tone: 'neutral' as const, icon: 'person' });
+            newMetrics.push({ label: 'Incidents', value: (data.total_incidents || 0).toString(), detail: 'Total incidents', tone: 'warning' as const, icon: 'report' });
+          } else if (role === 'authority' && data) {
+            newMetrics.push({ label: 'Incidents', value: (data.analytics?.incident_frequency || 0).toString(), detail: 'Frequency', tone: 'warning' as const, icon: 'bar-chart' });
+            newMetrics.push({ label: 'Efficiency', value: data.analytics?.efficiency || '0%', detail: 'Overall', tone: 'success' as const, icon: 'check-circle' });
+            newMetrics.push({ label: 'Risk', value: (data.analytics?.risk_levels || 'low').toUpperCase(), detail: 'Risk level', tone: 'danger' as const, icon: 'security' });
+          }
+          
+          if (newMetrics.length > 0) {
+            setDynamicMetrics(newMetrics);
+          }
+          
+          // Map alerts if provided, otherwise keep default fallback
+          if (data?.alerts && data.alerts.length > 0) {
+            setDynamicAlerts(data.alerts.map((a: any) => ({
+              title: a.title || 'Alert',
+              detail: a.detail || 'Notice',
+              tone: a.tone || 'warning',
+              icon: a.icon || 'warning'
+            })));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchDashboardData();
+  }, [selectedRole.key, router, roleValue]);
+
+  const handleLogout = async () => {
+    await setGlobalAuthToken(null);
+    await setGlobalUserRole(null);
+    router.replace('/login');
+  };
 
   const openDashboard = () => {
     router.push({ pathname: '/dashboard/[role]', params: { role: selectedRole.key } });
@@ -235,11 +317,11 @@ export default function RoleDashboardScreen() {
           </View>
 
           <View style={styles.topActions}>
-            <Link href="/login" asChild>
-              <Pressable style={({ pressed }) => [styles.iconButton, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }, pressed && styles.pressed]}>
-                <MaterialIcons name="logout" size={18} color={palette.text} />
-              </Pressable>
-            </Link>
+            <Pressable
+              onPress={handleLogout}
+              style={({ pressed }) => [styles.iconButton, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }, pressed && styles.pressed]}>
+              <MaterialIcons name="logout" size={18} color={palette.text} />
+            </Pressable>
           </View>
         </View>
 
@@ -283,9 +365,9 @@ export default function RoleDashboardScreen() {
           </View>
         </View>
 
-        <SectionHeader title="Command metrics" subtitle="A fast read on the shift." palette={palette} />
+        <SectionHeader title="Command metrics" subtitle={isLoading ? "Loading metrics..." : "A fast read on the shift."} palette={palette} />
         <View style={styles.metricGrid}>
-          {homeMetrics.map((metric) => (
+          {dynamicMetrics.map((metric) => (
             <View key={metric.label} style={[styles.metricCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
               <View style={styles.metricHeader}>
                 <View style={[styles.metricIcon, { backgroundColor: palette.surfaceMuted }]}>
@@ -305,14 +387,14 @@ export default function RoleDashboardScreen() {
           ))}
         </View>
 
-        <SectionHeader title="Live alerts" subtitle="Latest safety, attendance, and maintenance signals." palette={palette} />
+        <SectionHeader title="Live alerts" subtitle={isLoading ? "Loading alerts..." : "Latest safety, attendance, and maintenance signals."} palette={palette} />
         <View style={[styles.alertPanel, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
-          {liveAlerts.map((alert, index) => (
+          {dynamicAlerts.map((alert, index) => (
             <View
               key={alert.title}
               style={[
                 styles.alertRow,
-                index < liveAlerts.length - 1
+                index < dynamicAlerts.length - 1
                   ? { borderBottomColor: palette.border, borderBottomWidth: StyleSheet.hairlineWidth }
                   : null,
               ]}>

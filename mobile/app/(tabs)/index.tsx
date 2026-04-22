@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Link } from 'expo-router';
+import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,11 +7,33 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useEffect, useState } from 'react';
+
+import { loadAuthState } from '@/constants/auth';
 
 export default function LandingScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const accent = palette.tint;
+  const router = useRouter();
+  const [isReady, setIsReady] = useState(false);
+
+  const { noredirect } = useLocalSearchParams();
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { token, role } = await loadAuthState();
+      if (token && role && noredirect !== 'true') {
+        // Automatically route them to their dashboard
+        router.replace({ pathname: '/dashboard/[role]', params: { role } });
+      } else {
+        setIsReady(true);
+      }
+    }
+    checkAuth();
+  }, [router]);
+
+  if (!isReady) return null;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
@@ -19,23 +41,25 @@ export default function LandingScreen() {
         style={{ backgroundColor: palette.background }}
         contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.background }]}
         showsVerticalScrollIndicator={false}>
-        <View style={[styles.navbar, { borderBottomColor: palette.border }]}>
+        <View style={styles.navbar}>
           <View>
             <ThemedText type="subtitle" style={styles.brand}>
               MineOps
             </ThemedText>
-            <ThemedText style={{ color: palette.muted, fontSize: 13, lineHeight: 18 }}>
-              Coal Mine Safety System
+            <ThemedText style={{ color: palette.muted, fontSize: 12 }}>
+              Safety First
             </ThemedText>
           </View>
 
-          <Link href="/login" asChild>
-            <Pressable style={({ pressed }) => [styles.loginButton, { backgroundColor: accent }, pressed && styles.pressed]}>
-              <ThemedText lightColor="#111111" darkColor="#111111" style={styles.loginButtonText}>
-                Login
-              </ThemedText>
-            </Pressable>
-          </Link>
+          <View style={styles.navActions}>
+            <Link href="/login" asChild>
+              <Pressable style={({ pressed }) => [styles.navLogin, { backgroundColor: accent }, pressed && styles.pressed]}>
+                <ThemedText lightColor="#111111" darkColor="#111111" style={{ fontSize: 13, fontWeight: '800' }}>
+                  Sign In
+                </ThemedText>
+              </Pressable>
+            </Link>
+          </View>
         </View>
 
         <View style={[styles.heroCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
@@ -54,17 +78,26 @@ export default function LandingScreen() {
           <View style={styles.heroActions}>
             <Link href="/login" asChild>
               <Pressable style={({ pressed }) => [styles.primaryButton, { backgroundColor: accent, opacity: pressed ? 0.88 : 1 }]}>
+                <MaterialIcons name="login" size={18} color="#111111" />
                 <ThemedText lightColor="#111111" darkColor="#111111" style={styles.primaryButtonText}>
-                  Get Started
+                  Access Dashboard
                 </ThemedText>
               </Pressable>
             </Link>
 
-            <Link href={{ pathname: '/login', params: { demo: 'true' } }} asChild>
-              <Pressable style={({ pressed }) => [styles.secondaryButton, { borderColor: palette.border, backgroundColor: palette.surface }, pressed && styles.pressed]}>
-                <ThemedText style={{ fontSize: 14, fontWeight: '700' }}>Demo Mode</ThemedText>
-              </Pressable>
-            </Link>
+            <View style={styles.secondaryActionRow}>
+              <Link href="/register" asChild>
+                <Pressable style={({ pressed }) => [styles.secondaryButton, { borderColor: palette.border, backgroundColor: palette.surface }, pressed && styles.pressed]}>
+                  <ThemedText style={{ fontSize: 14, fontWeight: '700' }}>Create Account</ThemedText>
+                </Pressable>
+              </Link>
+
+              <Link href={{ pathname: '/login', params: { demo: 'true' } }} asChild>
+                <Pressable style={({ pressed }) => [styles.secondaryButton, { borderColor: palette.border, backgroundColor: palette.surface }, pressed && styles.pressed]}>
+                  <ThemedText style={{ fontSize: 14, fontWeight: '700' }}>Try Demo</ThemedText>
+                </Pressable>
+              </Link>
+            </View>
           </View>
         </View>
 
@@ -120,101 +153,100 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: 18,
+    marginBottom: 24,
+    marginTop: 10,
   },
-  brand: {
-    marginBottom: 2,
+  navActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  loginButton: {
-    minHeight: 40,
-    borderRadius: 14,
+  navLogin: {
+    height: 38,
+    borderRadius: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loginButtonText: {
-    fontSize: 14,
-    fontWeight: '800',
+  brand: {
+    fontWeight: '900',
+    letterSpacing: -0.5,
   },
   heroCard: {
     borderWidth: 1,
-    borderRadius: 28,
-    padding: 22,
+    borderRadius: 32,
+    padding: 24,
     overflow: 'hidden',
   },
   heroGlow: {
     position: 'absolute',
-    top: -36,
-    right: -10,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
+    top: -50,
+    right: -20,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
   },
   heroAccent: {
-    width: 42,
+    width: 48,
     height: 6,
     borderRadius: 999,
-    marginBottom: 18,
+    marginBottom: 20,
   },
   heroCopy: {
-    marginTop: 12,
-    marginBottom: 18,
+    marginTop: 14,
+    marginBottom: 24,
     fontSize: 15,
-    lineHeight: 23,
+    lineHeight: 24,
   },
   heroActions: {
-    flexDirection: 'row',
     gap: 12,
   },
   primaryButton: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 16,
+    minHeight: 56,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
+    gap: 10,
   },
   primaryButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
+  },
+  secondaryActionRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
   secondaryButton: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 16,
+    minHeight: 50,
+    borderRadius: 18,
     borderWidth: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
   },
   sectionHeader: {
-    marginTop: 24,
-    marginBottom: 10,
+    marginTop: 32,
+    marginBottom: 16,
     gap: 4,
   },
   roleGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
     gap: 12,
   },
   roleCard: {
     width: '48%',
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
-    padding: 16,
-    gap: 10,
-    minHeight: 148,
-    justifyContent: 'space-between',
+    padding: 18,
+    gap: 12,
+    minHeight: 160,
   },
   roleIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -224,18 +256,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   footerCard: {
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
-    padding: 16,
+    padding: 20,
     gap: 8,
-    marginTop: 20,
+    marginTop: 32,
   },
   footerTitle: {
     fontSize: 15,
     fontWeight: '800',
   },
   pressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.9,
+    transform: [{ scale: 0.97 }],
+    opacity: 0.85,
   },
 });

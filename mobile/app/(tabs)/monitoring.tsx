@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 type Palette = typeof Colors.dark;
 type ZoneStatus = 'normal' | 'warning' | 'critical';
@@ -40,6 +41,8 @@ const SENSORS: Sensor[] = [
 ];
 
 export default function MonitoringScreen() {
+  useProtectedRoute(['safety', 'admin', 'authority']);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();

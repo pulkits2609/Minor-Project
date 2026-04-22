@@ -9,11 +9,14 @@ import { Colors } from '@/constants/theme';
 import { INCIDENT_REVIEW_QUEUE } from '@/constants/incidents';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 type Palette = typeof Colors.dark;
 type ReviewStatus = 'pending' | 'assigned' | 'resolved';
 
 export default function IncidentReviewScreen() {
+  useProtectedRoute(['supervisor', 'safety', 'authority']);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();

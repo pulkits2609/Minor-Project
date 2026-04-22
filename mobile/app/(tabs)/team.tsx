@@ -7,13 +7,17 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+
+import { useEffect, useState } from 'react';
+import { globalAuthToken } from '@/constants/auth';
 
 type Palette = typeof Colors.dark;
 type MemberStatus = 'Active' | 'Break' | 'Delayed' | 'Off';
 type AttendanceStatus = 'Present' | 'Late' | 'Absent';
 
 type TeamMember = {
-  id: number;
+  id: string | number;
   name: string;
   status: MemberStatus;
   shift: string;
@@ -22,25 +26,47 @@ type TeamMember = {
   attendance: AttendanceStatus;
 };
 
-const TEAM_MEMBERS: TeamMember[] = [
-  { id: 1, name: 'R. Das', status: 'Active', shift: 'Day', zone: 'Zone C', tasks: 3, attendance: 'Present' },
-  { id: 2, name: 'M. Khan', status: 'Break', shift: 'Day', zone: 'Zone B', tasks: 2, attendance: 'Present' },
-  { id: 3, name: 'P. Kumar', status: 'Delayed', shift: 'Day', zone: 'Zone C', tasks: 2, attendance: 'Late' },
-  { id: 4, name: 'A. Roy', status: 'Active', shift: 'Day', zone: 'Zone A', tasks: 3, attendance: 'Present' },
-  { id: 5, name: 'S. Singh', status: 'Off', shift: 'Night', zone: 'Zone D', tasks: 0, attendance: 'Absent' },
-];
-
 export default function TeamScreen() {
+  useProtectedRoute(['supervisor', 'admin', 'authority']);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
 
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+
+  useEffect(() => {
+    async function fetchTeam() {
+      if (!globalAuthToken) return;
+      try {
+        const res = await fetch('https://api.pulkitworks.info:5000/api/team', {
+          headers: { Authorization: `Bearer ${globalAuthToken}` },
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          const mappedTeam = data.data.map((t: any) => ({
+            id: t.id,
+            name: t.name || 'Unknown User',
+            role: t.role || 'worker',
+            status: t.status || 'Active',
+            avatar: t.avatar,
+          }));
+          setTeamMembers(mappedTeam);
+        }
+      } catch (err) {
+        console.error('Failed to fetch team members', err);
+      }
+    }
+    fetchTeam();
+  }, []);
+
   const stats = {
-    size: TEAM_MEMBERS.length,
-    active: TEAM_MEMBERS.filter((member) => member.status === 'Active').length,
-    break: TEAM_MEMBERS.filter((member) => member.status === 'Break').length,
+    size: teamMembers.length,
+    active: teamMembers.filter((member) => member.status === 'Active').length,
+    break: teamMembers.filter((member) => member.status === 'Break').length,
   };
 
   return (
@@ -95,7 +121,7 @@ export default function TeamScreen() {
         </View>
 
         <View style={styles.memberList}>
-          {TEAM_MEMBERS.map((member) => (
+          {teamMembers.map((member) => (
             <View key={member.id} style={[styles.memberCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
               <View style={styles.memberHeading}>
                 <View>

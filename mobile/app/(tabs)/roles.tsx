@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 const ROLE_DETAILS = [
   { name: 'Worker', level: 1, permissions: ['Report Incidents', 'View Tasks', 'Check In/Out', 'View Alerts'] },
@@ -27,6 +28,8 @@ const MATRIX = [
 ];
 
 export default function RolesScreen() {
+  useProtectedRoute(['admin']);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();

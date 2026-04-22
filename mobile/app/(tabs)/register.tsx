@@ -26,6 +26,7 @@ export default function RegisterScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     employeeId: '',
@@ -54,13 +55,45 @@ export default function RegisterScreen() {
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (formData.password !== formData.confirmPassword) {
       Alert.alert('Passwords do not match', 'Please confirm the same password before submitting.');
       return;
     }
 
-    setIsSubmitted(true);
+    if (!formData.fullName || !formData.email || !formData.password) {
+      Alert.alert('Missing Fields', 'Please fill out all required fields.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('https://api.pulkitworks.info:5000/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.fullName,
+          email: formData.email,
+          password: formData.password,
+          role: formData.requestedRole,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Registration Failed', data.error || 'An error occurred during registration.');
+        return;
+      }
+
+      setIsSubmitted(true);
+    } catch {
+      Alert.alert('Network Error', 'Could not connect to the server.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isSubmitted) {
@@ -104,7 +137,7 @@ export default function RegisterScreen() {
               </ThemedText>
             </View>
 
-            <Link href="/" asChild>
+            <Link href={{ pathname: '/', params: { noredirect: 'true' } }} asChild>
               <Pressable style={({ pressed }) => [styles.backButton, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }, pressed && styles.pressed]}>
                 <MaterialIcons name="home" size={18} color={palette.text} />
               </Pressable>
@@ -245,9 +278,10 @@ export default function RegisterScreen() {
 
             <Pressable
               onPress={handleSubmit}
-              style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.tint }, pressed && styles.pressed]}>
+              disabled={isLoading}
+              style={({ pressed }) => [styles.primaryButton, { backgroundColor: isLoading ? palette.muted : palette.tint }, pressed && styles.pressed]}>
               <ThemedText lightColor="#111111" darkColor="#111111" style={styles.primaryButtonText}>
-                Submit Registration Request
+                {isLoading ? 'Submitting...' : 'Submit Registration Request'}
               </ThemedText>
             </Pressable>
 

@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useState , useEffect} from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,12 +8,16 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+
+
+import { globalAuthToken } from '@/constants/auth';
 
 type UserStatus = 'Active' | 'Suspended';
 type UserRole = 'Worker' | 'Supervisor' | 'Safety Officer' | 'Administrator';
 
 type UserRow = {
-  id: number;
+  id: string | number;
   name: string;
   email: string;
   role: UserRole;
@@ -21,17 +25,11 @@ type UserRow = {
   lastActive: string;
 };
 
-const USERS: UserRow[] = [
-  { id: 1, name: 'R Das', email: 'rdas@coalmine.com', role: 'Worker', status: 'Active', lastActive: 'Just now' },
-  { id: 2, name: 'M Khan', email: 'mkhan@coalmine.com', role: 'Supervisor', status: 'Active', lastActive: '5 min ago' },
-  { id: 3, name: 'N Roy', email: 'nroy@coalmine.com', role: 'Safety Officer', status: 'Suspended', lastActive: '2 days ago' },
-  { id: 4, name: 'A Sharma', email: 'asharma@coalmine.com', role: 'Administrator', status: 'Active', lastActive: 'Just now' },
-  { id: 5, name: 'P Kumar', email: 'pkumar@coalmine.com', role: 'Worker', status: 'Active', lastActive: '30 min ago' },
-];
-
 const ROLE_FILTERS: ('all' | UserRole)[] = ['all', 'Worker', 'Supervisor', 'Safety Officer', 'Administrator'];
 
 export default function UsersScreen() {
+  useProtectedRoute(['admin', 'authority']);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();
@@ -43,10 +41,45 @@ export default function UsersScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [employeeId, setEmployeeId] = useState('');
+  const [users, setUsers] = useState<UserRow[]>([]);
+
+
+  useEffect(() => {
+    async function fetchUsers() {
+      if (!globalAuthToken) return;
+      try {
+        const res = await fetch('https://api.pulkitworks.info:5000/api/users', {
+          headers: { Authorization: `Bearer ${globalAuthToken}` },
+        });
+
+        const contentType = res.headers.get('content-type');
+        if (!res.ok || !contentType || !contentType.includes('application/json')) {
+          console.warn('Users endpoint not available, using local data');
+          return;
+        }
+
+        const data = await res.json();
+        if (data.status === 'success') {
+          const mappedUsers = data.data.map((u: any) => ({
+            id: u.id,
+            name: u.name || 'Unknown',
+            email: u.email || '',
+            role: u.role || 'worker',
+            status: u.status || 'Active',
+            lastActive: u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A',
+          }));
+          setUsers(mappedUsers);
+        }
+      } catch (err) {
+        console.error('Failed to fetch users', err);
+      }
+    }
+    fetchUsers();
+  }, []);
 
   const filteredUsers = useMemo(() => {
-    return filterRole === 'all' ? USERS : USERS.filter((user) => user.role === filterRole);
-  }, [filterRole]);
+    return filterRole === 'all' ? users : users.filter((user) => user.role === filterRole.toLowerCase() || user.role === filterRole);
+  }, [filterRole, users]);
 
   const canCreate = selectedRole.key === 'admin' || selectedRole.key === 'authority';
 
@@ -176,9 +209,9 @@ export default function UsersScreen() {
 
         <View style={styles.statsGrid}>
           {[
-            { label: 'Total Users', value: String(USERS.length), tone: '#60a5fa', bg: '#60a5fa22' },
-            { label: 'Active Users', value: String(USERS.filter((user) => user.status === 'Active').length), tone: palette.success, bg: palette.success + '22' },
-            { label: 'Suspended', value: String(USERS.filter((user) => user.status === 'Suspended').length), tone: palette.danger, bg: palette.danger + '22' },
+            { label: 'Total Users', value: String(users.length), tone: '#60a5fa', bg: '#60a5fa22' },
+            { label: 'Active Users', value: String(users.filter((user) => user.status === 'Active').length), tone: palette.success, bg: palette.success + '22' },
+            { label: 'Suspended', value: String(users.filter((user) => user.status === 'Suspended').length), tone: palette.danger, bg: palette.danger + '22' },
             { label: 'Updated', value: 'Today', tone: palette.text, bg: palette.surfaceElevated },
           ].map((item) => (
             <View key={item.label} style={[styles.statCard, { backgroundColor: item.bg, borderColor: palette.border }]}>

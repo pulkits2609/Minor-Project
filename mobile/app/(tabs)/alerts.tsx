@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useState , useEffect} from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,12 +8,16 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
-type Palette = typeof Colors.dark;
+
+import { globalAuthToken } from '@/constants/auth';
+
+
 type AlertType = 'critical' | 'warning' | 'alert' | 'info';
 
 type AlertItem = {
-  id: number;
+  id: string | number;
   type: AlertType;
   title: string;
   message: string;
@@ -22,57 +26,11 @@ type AlertItem = {
   action: string;
 };
 
-const ALERTS: AlertItem[] = [
-  {
-    id: 1,
-    type: 'critical',
-    title: 'CRITICAL: Methane level critical in Zone C',
-    message: 'Gas concentration has reached dangerous levels. Immediate evacuation may be required.',
-    zone: 'Zone C',
-    time: 'Just now',
-    action: 'View Details',
-  },
-  {
-    id: 2,
-    type: 'warning',
-    title: 'Equipment malfunction detected',
-    message: 'Ventilation system in Zone B showing unusual temperature readings.',
-    zone: 'Zone B',
-    time: '5 minutes ago',
-    action: 'Investigate',
-  },
-  {
-    id: 3,
-    type: 'alert',
-    title: 'Staff shortage warning',
-    message: 'Team C is operating below minimum staffing requirements.',
-    zone: 'Team C',
-    time: '15 minutes ago',
-    action: 'Assign Personnel',
-  },
-  {
-    id: 4,
-    type: 'info',
-    title: 'Maintenance window scheduled',
-    message: 'Zone A will be under maintenance from 18:00 to 20:00 today.',
-    zone: 'Zone A',
-    time: '2 hours ago',
-    action: 'Acknowledge',
-  },
-  {
-    id: 5,
-    type: 'info',
-    title: 'Shift briefing completed',
-    message: 'All safety briefings for the day shift have been completed.',
-    zone: 'Main',
-    time: '4 hours ago',
-    action: 'View Report',
-  },
-];
-
-const FILTERS: Array<'all' | AlertType> = ['all', 'critical', 'warning', 'alert', 'info'];
+const FILTERS: ('all' | AlertType)[] = ['all', 'critical', 'warning', 'alert', 'info'];
 
 export default function AlertsScreen() {
+  useProtectedRoute(['worker', 'supervisor', 'safety', 'authority']);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();
@@ -80,18 +38,54 @@ export default function AlertsScreen() {
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
 
   const [filterType, setFilterType] = useState<'all' | AlertType>('all');
-  const [dismissedAlerts, setDismissedAlerts] = useState<number[]>([]);
+  const [dismissedAlerts, setDismissedAlerts] = useState<(string | number)[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
-  const filteredAlerts = ALERTS.filter((alert) => {
+
+  useEffect(() => {
+    async function fetchAlerts() {
+      if (!globalAuthToken) return;
+      try {
+        const res = await fetch('https://api.pulkitworks.info:5000/incidents/alerts', {
+          headers: { Authorization: `Bearer ${globalAuthToken}` },
+        });
+
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          // Fallback to dashboard if alerts route is not registered
+          const dashRes = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
+            headers: { Authorization: `Bearer ${globalAuthToken}` },
+          });
+          const dashData = await dashRes.json();
+          setAlerts(dashData.data.alerts || []);
+          return;
+        }
+
+        const data = await res.json();
+        if (data.status === 'success') {
+          // Dashboard returns alerts in different keys depending on role
+          const alertData = data.data.alerts || data.data.system_alerts || [];
+          if (alertData.length > 0) {
+            setAlerts(alertData);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch alerts', err);
+      }
+    }
+    fetchAlerts();
+  }, []);
+
+  const filteredAlerts = alerts.filter((alert) => {
     const matchesType = filterType === 'all' || alert.type === filterType;
     return matchesType && !dismissedAlerts.includes(alert.id);
   });
 
   const alertCounts = {
-    critical: ALERTS.filter((item) => item.type === 'critical').length,
-    warning: ALERTS.filter((item) => item.type === 'warning').length,
-    alert: ALERTS.filter((item) => item.type === 'alert').length,
-    info: ALERTS.filter((item) => item.type === 'info').length,
+    critical: alerts.filter((item) => item.type === 'critical').length,
+    warning: alerts.filter((item) => item.type === 'warning').length,
+    alert: alerts.filter((item) => item.type === 'alert').length,
+    info: alerts.filter((item) => item.type === 'info').length,
   };
 
   return (

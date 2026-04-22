@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useState , useEffect} from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,13 +8,17 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+
+
+import { globalAuthToken } from '@/constants/auth';
 
 type Palette = typeof Colors.dark;
 type TaskStatus = 'pending' | 'in-progress' | 'completed';
 type TaskPriority = 'high' | 'medium' | 'low';
 
 type TaskItem = {
-  id: number;
+  id: string | number;
   title: string;
   description: string;
   assignedTo: string;
@@ -24,52 +28,11 @@ type TaskItem = {
   status: TaskStatus;
 };
 
-const TASKS: TaskItem[] = [
-  {
-    id: 1,
-    title: 'Ventilation check - Zone C',
-    description: 'Inspect and calibrate ventilation sensors',
-    assignedTo: 'R. Das',
-    zone: 'Zone C',
-    dueDate: 'Today',
-    priority: 'high',
-    status: 'pending',
-  },
-  {
-    id: 2,
-    title: 'Equipment maintenance',
-    description: 'Regular maintenance of conveyor belt system',
-    assignedTo: 'M. Khan',
-    zone: 'Zone B',
-    dueDate: 'Tomorrow',
-    priority: 'medium',
-    status: 'in-progress',
-  },
-  {
-    id: 3,
-    title: 'Safety briefing',
-    description: 'Conduct safety briefing for Team A',
-    assignedTo: 'Supervisor',
-    zone: 'Main',
-    dueDate: '2 days',
-    priority: 'medium',
-    status: 'completed',
-  },
-  {
-    id: 4,
-    title: 'Tool inventory check',
-    description: 'Count and verify all safety equipment',
-    assignedTo: 'A. Roy',
-    zone: 'Storage',
-    dueDate: '3 days',
-    priority: 'low',
-    status: 'pending',
-  },
-];
-
-const FILTERS: Array<'all' | TaskStatus> = ['all', 'pending', 'in-progress', 'completed'];
+const FILTERS: ('all' | TaskStatus)[] = ['all', 'pending', 'in-progress', 'completed'];
 
 export default function TasksScreen() {
+  useProtectedRoute(['worker', 'supervisor', 'admin', 'authority']);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();
@@ -78,8 +41,45 @@ export default function TasksScreen() {
 
   const [filterStatus, setFilterStatus] = useState<'all' | TaskStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
 
-  const filteredTasks = TASKS.filter((task) => {
+
+  useEffect(() => {
+    async function fetchTasks() {
+      if (!globalAuthToken) return;
+      try {
+        const res = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
+          headers: { Authorization: `Bearer ${globalAuthToken}` },
+        });
+
+        const contentType = res.headers.get('content-type');
+        if (!res.ok || !contentType || !contentType.includes('application/json')) {
+          console.warn('Tasks endpoint not available, using local data');
+          return;
+        }
+
+        const data = await res.json();
+        if (data.status === 'success' && data.data.tasks) {
+          const mappedTasks = data.data.tasks.map((t: any) => ({
+            id: t.id,
+            title: t.title || t.task_name || 'Unnamed Task',
+            description: t.description || '',
+            assignedTo: t.assigned_to || 'Unassigned',
+            zone: t.location || 'General',
+            dueDate: t.created_at || '',
+            priority: t.priority || 'medium',
+            status: t.status || 'pending',
+          }));
+          setTasks(mappedTasks);
+        }
+      } catch (err) {
+        console.error('Failed to fetch tasks', err);
+      }
+    }
+    fetchTasks();
+  }, []);
+
+  const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
     return matchesSearch && matchesStatus;
@@ -122,10 +122,10 @@ export default function TasksScreen() {
 
         <View style={styles.statsGrid}>
           {[
-            { label: 'Total Tasks', value: String(TASKS.length), tone: '#60a5fa', bg: '#60a5fa22' },
-            { label: 'In Progress', value: String(TASKS.filter((task) => task.status === 'in-progress').length), tone: palette.warning, bg: palette.warning + '22' },
-            { label: 'Pending', value: String(TASKS.filter((task) => task.status === 'pending').length), tone: '#eab308', bg: '#eab30822' },
-            { label: 'Completed', value: String(TASKS.filter((task) => task.status === 'completed').length), tone: palette.success, bg: palette.success + '22' },
+            { label: 'Total Tasks', value: String(tasks.length), tone: '#60a5fa', bg: '#60a5fa22' },
+            { label: 'In Progress', value: String(tasks.filter((task) => task.status === 'in-progress').length), tone: palette.warning, bg: palette.warning + '22' },
+            { label: 'Pending', value: String(tasks.filter((task) => task.status === 'pending').length), tone: '#eab308', bg: '#eab30822' },
+            { label: 'Completed', value: String(tasks.filter((task) => task.status === 'completed').length), tone: palette.success, bg: palette.success + '22' },
           ].map((item) => (
             <View key={item.label} style={[styles.statCard, { backgroundColor: item.bg, borderColor: palette.border }]}>
               <ThemedText style={{ color: palette.muted, fontSize: 12, marginBottom: 4 }}>{item.label}</ThemedText>

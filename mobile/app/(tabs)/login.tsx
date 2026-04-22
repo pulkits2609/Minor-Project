@@ -9,6 +9,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
 
 const demoAccounts = [
   { email: 'worker@coalmine.com', role: 'worker', title: 'Worker' },
@@ -39,9 +41,44 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState(initialRole);
   const [showDemo, setShowDemo] = useState(params.demo === 'true');
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigateToDashboard = (role: string) => {
     router.push({ pathname: '/dashboard/[role]', params: { role } });
+  };
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Missing Fields', 'Please enter your email and password.');
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch('https://api.pulkitworks.info:5000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Login Failed', data.error || 'Invalid credentials');
+        return;
+      }
+
+      const userRole = data.user?.role || selectedRole;
+      await setGlobalAuthToken(data.access_token);
+      await setGlobalUserRole(userRole);
+      navigateToDashboard(userRole);
+    } catch {
+      Alert.alert('Network Error', 'Could not connect to the server.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -62,7 +99,7 @@ export default function LoginScreen() {
               </ThemedText>
             </View>
 
-            <Link href="/" asChild>
+            <Link href={{ pathname: '/', params: { noredirect: 'true' } }} asChild>
               <Pressable style={({ pressed }) => [styles.backButton, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }, pressed && styles.pressed]}>
                 <MaterialIcons name="home" size={18} color={palette.text} />
               </Pressable>
@@ -148,10 +185,11 @@ export default function LoginScreen() {
             </View>
 
             <Pressable
-              onPress={() => navigateToDashboard(selectedRole)}
-              style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.tint }, pressed && styles.pressed]}>
+              onPress={handleLogin}
+              disabled={isLoading}
+              style={({ pressed }) => [styles.primaryButton, { backgroundColor: isLoading ? palette.muted : palette.tint }, pressed && styles.pressed]}>
               <ThemedText lightColor="#111111" darkColor="#111111" style={styles.primaryButtonText}>
-                Sign In
+                {isLoading ? 'Signing In...' : 'Sign In'}
               </ThemedText>
             </Pressable>
           </View>

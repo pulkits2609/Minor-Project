@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 type Palette = typeof Colors.dark;
 type LogType = 'auth' | 'incident' | 'user' | 'alert' | 'system';
@@ -35,6 +36,8 @@ const LOGS: LogRow[] = [
 const FILTERS: ('all' | LogType)[] = ['all', 'auth', 'incident', 'user', 'alert', 'system'];
 
 export default function LogsScreen() {
+  useProtectedRoute(['admin', 'authority']);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();

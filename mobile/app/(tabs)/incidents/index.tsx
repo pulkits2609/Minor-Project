@@ -1,19 +1,36 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useState , useEffect} from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
-import { INCIDENT_LIST } from '@/constants/incidents';
+
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+
+
+import { globalAuthToken } from '@/constants/auth';
 
 type Palette = typeof Colors.dark;
 type FilterStatus = 'all' | 'pending-verification' | 'assigned' | 'escalated' | 'resolved';
 
+type IncidentItem = {
+  id: string | number;
+  code: string;
+  title: string;
+  status: string;
+  severity: string;
+  zone: string;
+  date: string;
+  reporter: string;
+};
+
 export default function IncidentsScreen() {
+  useProtectedRoute(['worker', 'supervisor', 'safety', 'authority']);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();
@@ -22,9 +39,49 @@ export default function IncidentsScreen() {
 
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [incidents, setIncidents] = useState<IncidentItem[]>([]);
+
+
+  useEffect(() => {
+    async function fetchIncidents() {
+      if (!globalAuthToken) return;
+      try {
+        const res = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
+          headers: { Authorization: `Bearer ${globalAuthToken}` },
+        });
+
+        const contentType = res.headers.get('content-type');
+        if (!res.ok || !contentType || !contentType.includes('application/json')) {
+          console.warn('Incidents endpoint not available, using local data');
+          return;
+        }
+
+        const data = await res.json();
+        // Dashboard can return incidents in 'incidents' or 'pending_incidents'
+        const incidentSource = data.data.incidents || data.data.pending_incidents || [];
+        
+        if (data.status === 'success') {
+          const mappedIncidents = incidentSource.map((t: any) => ({
+            id: t.id,
+            code: String(t.id).substring(0, 8).toUpperCase(),
+            title: t.title || (t.description ? t.description.split('.')[0] : 'No Title'),
+            status: t.status || 'pending',
+            severity: t.severity || 'medium',
+            zone: t.location || 'Unknown',
+            date: t.created_at ? new Date(t.created_at).toLocaleDateString() : 'N/A',
+            reporter: t.reported_by || 'Unknown',
+          }));
+          setIncidents(mappedIncidents);
+        }
+      } catch (err) {
+        console.error('Failed to fetch incidents', err);
+      }
+    }
+    fetchIncidents();
+  }, []);
 
   const filteredIncidents = useMemo(() => {
-    return INCIDENT_LIST.filter((incident) => {
+    return incidents.filter((incident) => {
       const matchesSearch =
         incident.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         incident.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -32,7 +89,7 @@ export default function IncidentsScreen() {
       const matchesStatus = filterStatus === 'all' || incident.status === filterStatus;
       return matchesSearch && matchesStatus;
     });
-  }, [filterStatus, searchTerm]);
+  }, [filterStatus, searchTerm, incidents]);
 
   const canReport = selectedRole.key === 'worker' || selectedRole.key === 'supervisor';
 
@@ -129,10 +186,10 @@ export default function IncidentsScreen() {
 
         <View style={styles.statsGrid}>
           {[
-            { label: 'Total', value: String(INCIDENT_LIST.length), tone: '#60a5fa', bg: '#60a5fa22' },
-            { label: 'Critical', value: String(INCIDENT_LIST.filter((item) => item.severity === 'critical').length), tone: palette.danger, bg: palette.danger + '22' },
-            { label: 'Open', value: String(INCIDENT_LIST.filter((item) => item.status !== 'resolved').length), tone: palette.warning, bg: palette.warning + '22' },
-            { label: 'Resolved', value: String(INCIDENT_LIST.filter((item) => item.status === 'resolved').length), tone: palette.success, bg: palette.success + '22' },
+            { label: 'Total', value: String(incidents.length), tone: '#60a5fa', bg: '#60a5fa22' },
+            { label: 'Critical', value: String(incidents.filter((item) => item.severity === 'critical').length), tone: palette.danger, bg: palette.danger + '22' },
+            { label: 'Open', value: String(incidents.filter((item) => item.status !== 'resolved').length), tone: palette.warning, bg: palette.warning + '22' },
+            { label: 'Resolved', value: String(incidents.filter((item) => item.status === 'resolved').length), tone: palette.success, bg: palette.success + '22' },
           ].map((item) => (
             <View key={item.label} style={[styles.statCard, { backgroundColor: item.bg, borderColor: palette.border }]}>
               <ThemedText style={{ color: palette.muted, fontSize: 12, marginBottom: 4 }}>{item.label}</ThemedText>

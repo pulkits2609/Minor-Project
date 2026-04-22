@@ -8,10 +8,13 @@ import { Colors } from '@/constants/theme';
 import { INCIDENT_DETAIL } from '@/constants/incidents';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 type Palette = typeof Colors.dark;
 
 export default function IncidentDetailScreen() {
+  useProtectedRoute(); // any authenticated role
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string; id?: string }>();

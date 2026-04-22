@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 type Palette = typeof Colors.dark;
 type SettingsTab = 'account' | 'security' | 'notifications';
@@ -19,6 +20,8 @@ const SETTINGS_TABS = [
 ] as const;
 
 export default function SettingsScreen() {
+  useProtectedRoute(); // any logged in user can view their settings
+
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();

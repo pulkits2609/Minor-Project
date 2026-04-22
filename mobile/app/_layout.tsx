@@ -5,12 +5,24 @@ import 'react-native-reanimated';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useEffect, useState } from 'react';
+import { loadAuthState } from '@/constants/auth';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 export default function RootLayout() {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    async function init() {
+      await loadAuthState();
+      setIsReady(true);
+    }
+    init();
+  }, []);
+
   const colorScheme = useColorScheme() ?? 'dark';
   const navigationTheme =
     colorScheme === 'dark'
@@ -38,6 +50,8 @@ export default function RootLayout() {
             notification: Colors.light.danger,
           },
         };
+
+  if (!isReady) return null;
 
   return (
     <ThemeProvider value={navigationTheme}>
