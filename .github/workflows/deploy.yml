@@ -1,0 +1,61 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+
+            echo "Starting Deployment..."
+
+            cd ~/Minor-Project
+            git pull origin main
+
+            cd backend
+
+            echo "Creating .env.local..."
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env.local
+            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env.local
+            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env.local
+
+            echo "Overwriting run.py..."
+            echo 'from app import create_app' > run.py
+            echo '' >> run.py
+            echo 'app = create_app()' >> run.py
+            echo '' >> run.py
+            echo "if __name__ == '__main__':" >> run.py
+            echo '    app.run(' >> run.py
+            echo '        host="0.0.0.0",' >> run.py
+            echo '        port=5000,' >> run.py
+            echo '        debug=True,' >> run.py
+            echo '        ssl_context=(' >> run.py
+            echo '            "/etc/letsencrypt/live/api.pulkitworks.info/fullchain.pem",' >> run.py
+            echo '            "/etc/letsencrypt/live/api.pulkitworks.info/privkey.pem"' >> run.py
+            echo '        )' >> run.py
+            echo '    )' >> run.py
+
+            pip3 install -r requirements.txt
+
+            pm2 restart backend || pm2 start run.py --name backend --interpreter python3
+
+            echo "Deployment Completed!"
+
+          EOF
