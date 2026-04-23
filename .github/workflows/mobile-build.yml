@@ -2,7 +2,7 @@ name: Build Mobile APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
     paths:
       - 'mobile/**'
   workflow_dispatch:
@@ -23,6 +23,12 @@ jobs:
       with:
         node-version: 20 # Upgraded to 20 for better Expo compatibility
 
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
     - name: Install dependencies
       run: |
         cd mobile
@@ -34,27 +40,16 @@ jobs:
     - name: Generate version
       run: echo "VERSION=$(git rev-list --count HEAD)" >> $GITHUB_ENV
 
-    - name: Build APK
-      run: |
-        cd mobile
-        eas build --platform android --profile production --non-interactive
-      env:
-        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-    - name: Download APK
+    - name: Build APK (Local)
       run: |
         mkdir -p output
-        cd mobile # <--- IMPORTANT: Run inside mobile folder
-        eas build:list --limit=1 --json > ../builds.json
-        cd ..
-        node -e "
-        const fs = require('fs');
-        const builds = JSON.parse(fs.readFileSync('builds.json'));
-        console.log(builds[0].artifacts.buildUrl);
-        " > url.txt
-        curl -L $(cat url.txt) -o output/app.apk
+        cd mobile
+        # --local tells EAS to build on this machine, skipping the Expo queue
+        eas build --platform android --profile production --local --non-interactive --output=../output/app.apk
       env:
-        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # Also needed for build:list
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        NODE_OPTIONS: "--max-old-space-size=4096" # Help prevent OOM crashes
+
 
     - name: Rename APK
       run: mv output/app.apk output/mineops-v${{ env.VERSION }}.apk
