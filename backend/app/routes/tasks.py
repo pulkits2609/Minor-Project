@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.utils.jwt_handler import verify_token
+from app.models.task import Task
+from app.extensions import db
 from app.services.task_service import (
     get_tasks,
     create_task,
