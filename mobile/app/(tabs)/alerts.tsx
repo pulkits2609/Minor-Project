@@ -40,37 +40,37 @@ export default function AlertsScreen() {
   const [filterType, setFilterType] = useState<'all' | AlertType>('all');
   const [dismissedAlerts, setDismissedAlerts] = useState<(string | number)[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
 
   useEffect(() => {
     async function fetchAlerts() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/incidents/alerts', {
+        const res = await fetch('https://api.pulkitworks.info:5000/api/alerts', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 
         const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          // Fallback to dashboard if alerts route is not registered
-          const dashRes = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
-            headers: { Authorization: `Bearer ${globalAuthToken}` },
-          });
-          const dashData = await dashRes.json();
-          setAlerts(dashData.data.alerts || []);
-          return;
-        }
-
-        const data = await res.json();
-        if (data.status === 'success') {
-          // Dashboard returns alerts in different keys depending on role
-          const alertData = data.data.alerts || data.data.system_alerts || [];
-          if (alertData.length > 0) {
-            setAlerts(alertData);
+        if (res.ok && contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data.status === 'success') {
+            const rawAlerts = data.data || [];
+            const mappedAlerts = rawAlerts.map((a: any) => ({
+              id: a.id,
+              title: a.title || 'System Alert',
+              message: a.message || '',
+              type: a.type || 'info',
+              time: a.created_at || new Date().toLocaleTimeString(),
+              read: a.read || false,
+            }));
+            setAlerts(mappedAlerts);
           }
         }
       } catch (err) {
         console.error('Failed to fetch alerts', err);
+      } finally {
+        setLoading(false);
       }
     }
     fetchAlerts();

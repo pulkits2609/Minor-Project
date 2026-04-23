@@ -42,38 +42,23 @@ export default function AttendanceScreen() {
     async function fetchData() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
+        const res = await fetch('https://api.pulkitworks.info:5000/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const data = await res.json();
         
         if (data.status === 'success') {
-          // If we have team members or stats, try to build a list
-          const team = data.data.team_members || [];
-          if (team.length > 0) {
-            const mapped = team.map((member: any, index: number) => ({
-              id: member.id || index,
-              name: member.name || 'Worker',
-              checkIn: '08:00',
-              checkOut: '17:00',
-              status: 'Present' as const,
-              duration: '9h 0m'
-            }));
-            setAttendance(mapped);
-          } else {
-            // Fallback: If no team, use dashboard stats to show how many are present
-            const presentCount = parseInt(data.data.stats?.attendance?.split('/')[0] || '0');
-            // Create placeholders based on the count
-            const placeholders: AttendanceRecord[] = Array.from({ length: Math.max(presentCount, 5) }).map((_, i) => ({
-              id: i,
-              name: `Worker ${i + 1}`,
-              checkIn: i < presentCount ? '08:15' : '—',
-              checkOut: i < presentCount ? '—' : '—',
-              status: i < presentCount ? 'Present' : 'Absent',
-              duration: i < presentCount ? 'In Progress' : '—'
-            }));
-            setAttendance(placeholders);
-          }
+          // data.data should be the list of attendance records from the backend
+          const rawAttendance = data.data || [];
+          const mapped = rawAttendance.map((item: any) => ({
+            id: item.id,
+            name: item.user_name || item.name || 'Worker',
+            checkIn: item.check_in_time || item.check_in || '—',
+            checkOut: item.check_out_time || item.check_out || '—',
+            status: (item.status?.charAt(0).toUpperCase() + item.status?.slice(1)) || 'Present',
+            duration: item.duration || '—'
+          }));
+          setAttendance(mapped);
         }
       } catch (err) {
         console.error('Failed to fetch attendance', err);

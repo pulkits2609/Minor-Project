@@ -2,6 +2,9 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -18,10 +21,37 @@ export default function RootLayout() {
   useEffect(() => {
     async function init() {
       await loadAuthState();
+      await registerForPushNotificationsAsync();
       setIsReady(true);
     }
     init();
   }, []);
+
+  async function registerForPushNotificationsAsync() {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        console.warn('Failed to get push token for push notification!');
+        return;
+      }
+    } else {
+      console.warn('Must use physical device for Push Notifications');
+    }
+  }
 
   const colorScheme = useColorScheme() ?? 'dark';
   const navigationTheme =

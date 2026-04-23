@@ -385,6 +385,22 @@ export default function RoleDashboardScreen() {
               </ThemedText>
             </View>
           ))}
+          <View style={[styles.metricCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
+            <View style={styles.metricHeader}>
+              <View style={[styles.metricIcon, { backgroundColor: palette.surfaceMuted }]}>
+                <MaterialIcons name="notifications-active" size={18} color={palette.success} />
+              </View>
+              <ThemedText style={{ color: palette.muted, fontSize: 12, fontWeight: '700' }}>
+                Push Alerts
+              </ThemedText>
+            </View>
+            <ThemedText type="title" style={styles.metricValue}>
+              Active
+            </ThemedText>
+            <ThemedText style={{ color: palette.muted, fontSize: 13, lineHeight: 19 }}>
+              Notifications enabled
+            </ThemedText>
+          </View>
         </View>
 
         <SectionHeader title="Live alerts" subtitle={isLoading ? "Loading alerts..." : "Latest safety, attendance, and maintenance signals."} palette={palette} />

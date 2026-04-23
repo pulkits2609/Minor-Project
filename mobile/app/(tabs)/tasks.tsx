@@ -48,32 +48,32 @@ export default function TasksScreen() {
     async function fetchTasks() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
+        const res = await fetch('https://api.pulkitworks.info:5000/api/tasks', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 
         const contentType = res.headers.get('content-type');
-        if (!res.ok || !contentType || !contentType.includes('application/json')) {
-          console.warn('Tasks endpoint not available, using local data');
-          return;
-        }
-
-        const data = await res.json();
-        if (data.status === 'success' && data.data.tasks) {
-          const mappedTasks = data.data.tasks.map((t: any) => ({
-            id: t.id,
-            title: t.title || t.task_name || 'Unnamed Task',
-            description: t.description || '',
-            assignedTo: t.assigned_to || 'Unassigned',
-            zone: t.location || 'General',
-            dueDate: t.created_at || '',
-            priority: t.priority || 'medium',
-            status: t.status || 'pending',
-          }));
-          setTasks(mappedTasks);
+        if (res.ok && contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data.status === 'success') {
+            const rawTasks = data.data || [];
+            const mappedTasks = rawTasks.map((t: any) => ({
+              id: t.id,
+              title: t.task_name || t.title || 'Untitled Task',
+              description: t.description || '',
+              assignedTo: t.assigned_to || 'Unassigned',
+              zone: t.location || 'Site Wide',
+              dueDate: t.due_date || 'N/A',
+              priority: (t.priority || 'medium').toLowerCase(),
+              status: (t.status || 'assigned').replace('_', ' '),
+            }));
+            setTasks(mappedTasks);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch tasks', err);
+      } finally {
+        setLoading(false);
       }
     }
     fetchTasks();

@@ -1,0 +1,67 @@
+name: Build Mobile APK
+
+on:
+  push:
+    paths:
+      - 'mobile/**'
+
+permissions:
+  contents: write # Required for creating the Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20 # Upgraded to 20 for better Expo compatibility
+
+    - name: Install dependencies
+      run: |
+        cd mobile
+        npm install
+
+    - name: Install EAS CLI
+      run: npm install -g eas-cli
+
+    - name: Generate version
+      run: echo "VERSION=$(git rev-list --count HEAD)" >> $GITHUB_ENV
+
+    - name: Build APK
+      run: |
+        cd mobile
+        eas build --platform android --profile production --non-interactive
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    - name: Download APK
+      run: |
+        mkdir -p output
+        cd mobile # <--- IMPORTANT: Run inside mobile folder
+        eas build:list --limit=1 --json > ../builds.json
+        cd ..
+        node -e "
+        const fs = require('fs');
+        const builds = JSON.parse(fs.readFileSync('builds.json'));
+        console.log(builds[0].artifacts.buildUrl);
+        " > url.txt
+        curl -L $(cat url.txt) -o output/app.apk
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # Also needed for build:list
+
+    - name: Rename APK
+      run: mv output/app.apk output/mineops-v${{ env.VERSION }}.apk
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ env.VERSION }}
+        name: Mine Ops v${{ env.VERSION }}
+        files: output/mineops-v${{ env.VERSION }}.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
