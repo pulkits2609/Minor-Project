@@ -79,11 +79,27 @@ def update_status():
     task_id = data.get("task_id")
     status = data.get("status")
 
+    if not task_id or not status:
+        return jsonify({"error": "task_id and status required"}), 400
+
     if status not in ["assigned", "in_progress", "completed"]:
         return jsonify({"error": "Invalid status"}), 400
 
-    success = update_task_status(task_id, status, token_data["user_id"])
+    #NEW CHECK
+    task = Task.query.filter_by(id=task_id).first()
+
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+
+    #Ownership check
+    if task.assigned_to != token_data["user_id"]:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    #Update
+    task.status = status
+    db.session.commit()
 
     return jsonify({
-        "status": "success" if success else "failed"
+        "status": "success",
+        "message": "Task updated successfully"
     })
