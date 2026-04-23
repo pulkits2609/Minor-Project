@@ -56,12 +56,14 @@ def update_task_status(task_id, status, user_id):
     return result is not None
 
 
-#Supervisor view all tasks (optional dashboard)
+# Supervisor view all tasks (optional dashboard)
 def get_all_tasks():
     query = text("""
-        SELECT id, task_name, description, priority, status, assigned_to, created_at
-        FROM tasks
-        ORDER BY created_at DESC
+        SELECT t.id, t.task_name, t.description, t.priority, t.status, 
+               u.name as assigned_to, t.created_at
+        FROM tasks t
+        LEFT JOIN users u ON t.assigned_to = u.id
+        ORDER BY t.created_at DESC
     """)
 
     result = db.session.execute(query).fetchall()

@@ -6,13 +6,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
-import { INCIDENT_REVIEW_QUEUE } from '@/constants/incidents';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { globalAuthToken } from '@/constants/auth';
+import { useEffect } from 'react';
 
 type Palette = typeof Colors.dark;
-type ReviewStatus = 'pending' | 'assigned' | 'resolved';
+type ReviewStatus = 'pending-verification' | 'assigned' | 'resolved';
 
 export default function IncidentReviewScreen() {
   useProtectedRoute(['supervisor', 'safety', 'authority']);
@@ -23,14 +24,56 @@ export default function IncidentReviewScreen() {
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
 
-  const [filterStatus, setFilterStatus] = useState<ReviewStatus>('pending');
-  const [selectedIncident, setSelectedIncident] = useState<number | null>(null);
+  const [filterStatus, setFilterStatus] = useState<ReviewStatus>('pending-verification');
+  const [selectedIncident, setSelectedIncident] = useState<string | null>(null);
   const [verificationNotes, setVerificationNotes] = useState('');
+  const [incidents, setIncidents] = useState<any[]>([]);
 
-  const filteredIncidents = INCIDENT_REVIEW_QUEUE.filter((incident) => incident.status === filterStatus);
+  useEffect(() => {
+    fetchIncidents();
+  }, []);
+
+  const fetchIncidents = async () => {
+    if (!globalAuthToken) return;
+    try {
+      const res = await fetch('https://api.pulkitworks.info:5000/api/incidents', {
+        headers: { Authorization: `Bearer ${globalAuthToken}` },
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setIncidents(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch incidents', err);
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, status: string) => {
+    if (!globalAuthToken) return;
+    try {
+      const res = await fetch(`https://api.pulkitworks.info:5000/api/incidents/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${globalAuthToken}`,
+        },
+        body: JSON.stringify({ status, notes: verificationNotes }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        Alert.alert('Success', `Incident status updated to ${status}`);
+        fetchIncidents();
+        setVerificationNotes('');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update status');
+    }
+  };
+
+  const filteredIncidents = incidents.filter((incident) => incident.status === filterStatus);
   const current =
     selectedIncident !== null
-      ? INCIDENT_REVIEW_QUEUE.find((incident) => incident.id === selectedIncident)
+      ? incidents.find((incident) => incident.id === selectedIncident)
       : filteredIncidents[0];
 
   return (
@@ -69,7 +112,7 @@ export default function IncidentReviewScreen() {
         </View>
 
         <View style={styles.filterRow}>
-          {['pending', 'assigned', 'resolved'].map((status) => {
+          {['pending-verification', 'assigned', 'resolved'].map((status) => {
             const selected = filterStatus === status;
             return (
               <Pressable
@@ -94,7 +137,7 @@ export default function IncidentReviewScreen() {
                     fontWeight: '800',
                     letterSpacing: 0.4,
                   }}>
-                  {status.toUpperCase()}
+                  {status.replace('-', ' ').toUpperCase()}
                 </ThemedText>
               </Pressable>
             );
@@ -105,19 +148,19 @@ export default function IncidentReviewScreen() {
           {[
             {
               label: 'Pending',
-              value: String(INCIDENT_REVIEW_QUEUE.filter((item) => item.status === 'pending').length),
+              value: String(incidents.filter((item) => item.status === 'pending-verification').length),
               tone: palette.warning,
               bg: palette.warning + '22',
             },
             {
               label: 'Assigned',
-              value: String(INCIDENT_REVIEW_QUEUE.filter((item) => item.status === 'assigned').length),
+              value: String(incidents.filter((item) => item.status === 'assigned').length),
               tone: '#60a5fa',
               bg: '#3b82f622',
             },
             {
               label: 'Resolved',
-              value: String(INCIDENT_REVIEW_QUEUE.filter((item) => item.status === 'resolved').length),
+              value: String(incidents.filter((item) => item.status === 'resolved').length),
               tone: palette.success,
               bg: palette.success + '22',
             },
@@ -148,21 +191,21 @@ export default function IncidentReviewScreen() {
                 ]}>
                 <View style={styles.cardHeader}>
                   <View style={styles.cardHeaderText}>
-                    <ThemedText style={styles.incidentCode}>{incident.code}</ThemedText>
-                    <ThemedText style={styles.incidentTitle}>{incident.title}</ThemedText>
+                    <ThemedText style={styles.incidentCode}>INC-{String(incident.id).substring(0,8).toUpperCase()}</ThemedText>
+                    <ThemedText style={styles.incidentTitle}>{incident.description ? incident.description.split('.')[0] : 'No Description'}</ThemedText>
                   </View>
                   <View style={[styles.severityPill, { backgroundColor: severityBackground(incident.severity, palette) }]}>
                     <ThemedText style={{ color: severityText(incident.severity, palette), fontSize: 11, fontWeight: '800' }}>
-                      {incident.severity.toUpperCase()}
+                      {(incident.severity || 'MEDIUM').toUpperCase()}
                     </ThemedText>
                   </View>
                 </View>
 
                 <ThemedText style={{ color: palette.muted, fontSize: 12, lineHeight: 18, marginTop: 6 }}>
-                  {incident.zone} • {incident.date}
+                  {incident.location || 'Unknown'} • {new Date(incident.created_at).toLocaleDateString()}
                 </ThemedText>
                 <ThemedText style={{ color: palette.muted, fontSize: 12, lineHeight: 18, marginTop: 4 }}>
-                  {incident.reporter}
+                  {incident.reporter || 'Unknown'}
                 </ThemedText>
               </Pressable>
             );
@@ -173,12 +216,12 @@ export default function IncidentReviewScreen() {
           <View style={[styles.detailCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
             <View style={styles.detailHeader}>
               <View>
-                <ThemedText style={{ color: palette.muted, fontSize: 12, marginBottom: 4 }}>{current.code}</ThemedText>
-                <ThemedText type="subtitle">{current.title}</ThemedText>
+                <ThemedText style={{ color: palette.muted, fontSize: 12, marginBottom: 4 }}>INC-{String(current.id).substring(0,8).toUpperCase()}</ThemedText>
+                <ThemedText type="subtitle">{current.description ? current.description.split('.')[0] : 'No Description'}</ThemedText>
               </View>
               <View style={[styles.severityPill, { backgroundColor: severityBackground(current.severity, palette) }]}>
                 <ThemedText style={{ color: severityText(current.severity, palette), fontSize: 11, fontWeight: '800' }}>
-                  {current.severity.toUpperCase()}
+                  {(current.severity || 'MEDIUM').toUpperCase()}
                 </ThemedText>
               </View>
             </View>
@@ -186,15 +229,15 @@ export default function IncidentReviewScreen() {
             <View style={styles.detailGrid}>
               <View style={styles.detailItem}>
                 <ThemedText style={{ color: palette.muted, fontSize: 12 }}>Zone</ThemedText>
-                <ThemedText style={{ color: palette.text, fontWeight: '800' }}>{current.zone}</ThemedText>
+                <ThemedText style={{ color: palette.text, fontWeight: '800' }}>{current.location || 'Unknown'}</ThemedText>
               </View>
               <View style={styles.detailItem}>
                 <ThemedText style={{ color: palette.muted, fontSize: 12 }}>Date &amp; Time</ThemedText>
-                <ThemedText style={{ color: palette.text, fontWeight: '800' }}>{current.date}</ThemedText>
+                <ThemedText style={{ color: palette.text, fontWeight: '800' }}>{new Date(current.created_at).toLocaleString()}</ThemedText>
               </View>
               <View style={styles.detailItem}>
                 <ThemedText style={{ color: palette.muted, fontSize: 12 }}>Reporter</ThemedText>
-                <ThemedText style={{ color: palette.text, fontWeight: '800' }}>{current.reporter}</ThemedText>
+                <ThemedText style={{ color: palette.text, fontWeight: '800' }}>{current.reporter || 'Unknown'}</ThemedText>
               </View>
             </View>
 
@@ -205,7 +248,7 @@ export default function IncidentReviewScreen() {
               </ThemedText>
             </View>
 
-            {current.status === 'pending' ? (
+            {current.status === 'pending-verification' ? (
               <View style={styles.sectionGap}>
                 <ThemedText style={styles.sectionTitle}>Verification Required</ThemedText>
                 <TextInput
@@ -227,7 +270,7 @@ export default function IncidentReviewScreen() {
                 />
                 <View style={styles.actionGrid}>
                   <Pressable
-                    onPress={() => Alert.alert('Approve', 'This is a demo action.')}
+                    onPress={() => handleUpdateStatus(current.id, 'assigned')}
                     style={({ pressed }) => [
                       styles.actionButton,
                       { backgroundColor: palette.success + '22', borderColor: palette.success },
@@ -236,7 +279,7 @@ export default function IncidentReviewScreen() {
                     <ThemedText style={{ color: palette.success, fontSize: 13, fontWeight: '800' }}>Approve</ThemedText>
                   </Pressable>
                   <Pressable
-                    onPress={() => Alert.alert('Reject', 'This is a demo action.')}
+                    onPress={() => handleUpdateStatus(current.id, 'resolved')}
                     style={({ pressed }) => [
                       styles.actionButton,
                       { backgroundColor: palette.danger + '22', borderColor: palette.danger },

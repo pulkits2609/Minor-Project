@@ -80,10 +80,10 @@ export default function IncidentReportScreen() {
 
       // Handle non-JSON responses (e.g. 404 HTML pages) gracefully
       const contentType = res.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.warn('Server returned non-JSON response. Simulating success for testing.');
-        setReference(`SMP-${Math.floor(Math.random() * 10000)}`);
-        setSubmitted(true);
+      if (!res.ok || !contentType || !contentType.includes('application/json')) {
+        const text = await res.text();
+        console.error('Incident API error:', text);
+        Alert.alert('Error', 'Server returned an invalid response.');
         return;
       }
 

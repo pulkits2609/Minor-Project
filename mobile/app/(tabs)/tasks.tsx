@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useState , useEffect} from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -42,6 +42,15 @@ export default function TasksScreen() {
   const [filterStatus, setFilterStatus] = useState<'all' | TaskStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // New Task Modal State
+  const [isCreating, setIsCreating] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDesc, setNewTaskDesc] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('medium');
+  const [selectedWorkerId, setSelectedWorkerId] = useState('');
+  const [workers, setWorkers] = useState<{ id: string, name: string }[]>([]);
 
 
   useEffect(() => {
@@ -73,18 +82,86 @@ export default function TasksScreen() {
       } catch (err) {
         console.error('Failed to fetch tasks', err);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     }
     fetchTasks();
   }, []);
+
+  const fetchWorkers = async () => {
+    if (!globalAuthToken) return;
+    try {
+      const res = await fetch('https://api.pulkitworks.info:5000/api/users/workers', {
+        headers: { Authorization: `Bearer ${globalAuthToken}` },
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setWorkers(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch workers', err);
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle || !selectedWorkerId) {
+      Alert.alert('Missing Fields', 'Please enter a title and select a worker.');
+      return;
+    }
+
+    try {
+      const res = await fetch('https://api.pulkitworks.info:5000/api/tasks', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${globalAuthToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          task_name: newTaskTitle,
+          description: newTaskDesc,
+          priority: newTaskPriority,
+          assigned_to: selectedWorkerId
+        })
+      });
+
+      const data = await res.json();
+      if (data.status === 'success') {
+        Alert.alert('Success', 'Task assigned successfully!');
+        setIsCreating(false);
+        setNewTaskTitle('');
+        setNewTaskDesc('');
+        setSelectedWorkerId('');
+        // Re-fetch tasks
+        const refreshRes = await fetch('https://api.pulkitworks.info:5000/api/tasks', {
+          headers: { Authorization: `Bearer ${globalAuthToken}` },
+        });
+        const refreshData = await refreshRes.json();
+        if (refreshData.status === 'success') {
+          setTasks(refreshData.data.map((t: any) => ({
+            id: t.id,
+            title: t.task_name || t.title || 'Untitled Task',
+            description: t.description || '',
+            assignedTo: t.assigned_to || 'Unassigned',
+            zone: t.location || 'Site Wide',
+            dueDate: t.due_date || 'N/A',
+            priority: (t.priority || 'medium').toLowerCase(),
+            status: (t.status || 'assigned').replace('_', ' '),
+          })));
+        }
+      } else {
+        Alert.alert('Error', data.error || 'Failed to create task');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Connection failed');
+    }
+  };
   
   const handleUpdateStatus = async (taskId: string | number, currentStatus: string) => {
     if (!globalAuthToken) return;
     
     let nextStatus = '';
     if (currentStatus === 'assigned') nextStatus = 'in_progress';
-    else if (currentStatus === 'in-progress') nextStatus = 'completed';
+    else if (currentStatus === 'in progress') nextStatus = 'completed';
     else return;
 
     try {
@@ -103,7 +180,7 @@ export default function TasksScreen() {
       const data = await res.json();
       if (res.ok) {
         // Optimistically update the UI or re-fetch
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: nextStatus.replace('_', '-') as any } : t));
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: nextStatus.replace('_', ' ') as any } : t));
         Alert.alert('Success', `Task marked as ${nextStatus.replace('_', ' ')}`);
       } else {
         Alert.alert('Error', data.error || 'Failed to update task');
@@ -118,6 +195,14 @@ export default function TasksScreen() {
     const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: palette.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={palette.tint} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
@@ -207,7 +292,10 @@ export default function TasksScreen() {
 
           {(selectedRole.key === 'supervisor' || selectedRole.key === 'admin' || selectedRole.key === 'authority') ? (
             <Pressable
-              onPress={() => Alert.alert('Assign Task', 'Task creation is not wired in this mobile preview yet.')}
+              onPress={() => {
+                setIsCreating(true);
+                fetchWorkers();
+              }}
               style={({ pressed }) => [
                 styles.assignButton,
                 { backgroundColor: palette.tint },
@@ -271,6 +359,105 @@ export default function TasksScreen() {
             </View>
           ))}
         </View>
+        <Modal
+          visible={isCreating}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setIsCreating(false)}>
+          <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+            <View style={[styles.modalContent, { backgroundColor: palette.background, borderColor: palette.border }]}>
+              <View style={styles.modalHeader}>
+                <ThemedText type="subtitle">Assign New Task</ThemedText>
+                <Pressable onPress={() => setIsCreating(false)}>
+                  <MaterialIcons name="close" size={24} color={palette.text} />
+                </Pressable>
+              </View>
+
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.label}>Task Title *</ThemedText>
+                  <TextInput
+                    value={newTaskTitle}
+                    onChangeText={setNewTaskTitle}
+                    placeholder="E.g. Inspect Conveyor Belt"
+                    placeholderTextColor={palette.muted}
+                    style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.label}>Description</ThemedText>
+                  <TextInput
+                    value={newTaskDesc}
+                    onChangeText={setNewTaskDesc}
+                    placeholder="Details about the task..."
+                    placeholderTextColor={palette.muted}
+                    multiline
+                    numberOfLines={3}
+                    style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text, minHeight: 80, textAlignVertical: 'top', paddingTop: 12 }]}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.label}>Priority</ThemedText>
+                  <View style={styles.priorityRow}>
+                    {(['low', 'medium', 'high'] as TaskPriority[]).map((p) => (
+                      <Pressable
+                        key={p}
+                        onPress={() => setNewTaskPriority(p)}
+                        style={[
+                          styles.priorityOption,
+                          { 
+                            backgroundColor: newTaskPriority === p ? palette.tint : palette.surface,
+                            borderColor: palette.border
+                          }
+                        ]}>
+                        <ThemedText style={{ color: newTaskPriority === p ? '#111111' : palette.text, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' }}>{p}</ThemedText>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.label}>Assign To *</ThemedText>
+                  <View style={styles.workerList}>
+                    {workers.length === 0 ? (
+                      <ThemedText style={{ color: palette.muted, fontSize: 13, textAlign: 'center', padding: 20 }}>No workers available</ThemedText>
+                    ) : (
+                      workers.map((w) => (
+                        <Pressable
+                          key={w.id}
+                          onPress={() => setSelectedWorkerId(w.id)}
+                          style={[
+                            styles.workerOption,
+                            { 
+                              backgroundColor: selectedWorkerId === w.id ? palette.tint + '22' : palette.surface,
+                              borderColor: selectedWorkerId === w.id ? palette.tint : palette.border
+                            }
+                          ]}>
+                          <ThemedText style={{ color: selectedWorkerId === w.id ? palette.tint : palette.text, fontWeight: selectedWorkerId === w.id ? '800' : '400' }}>{w.name}</ThemedText>
+                          {selectedWorkerId === w.id && <MaterialIcons name="check" size={18} color={palette.tint} />}
+                        </Pressable>
+                      ))
+                    )}
+                  </View>
+                </View>
+              </ScrollView>
+
+              <View style={styles.modalFooter}>
+                <Pressable
+                  onPress={handleCreateTask}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    { backgroundColor: palette.tint, width: '100%' },
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText lightColor="#111111" darkColor="#111111" style={{ fontWeight: '800' }}>Create Task</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -434,5 +621,68 @@ const styles = StyleSheet.create({
   pressed: {
     transform: [{ scale: 0.98 }],
     opacity: 0.9,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxHeight: '80%',
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 24,
+    gap: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalBody: {
+    gap: 16,
+  },
+  modalFooter: {
+    marginTop: 10,
+  },
+  inputGroup: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  input: {
+    minHeight: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    fontSize: 15,
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  priorityOption: {
+    flex: 1,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  workerList: {
+    gap: 8,
+  },
+  workerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
   },
 });

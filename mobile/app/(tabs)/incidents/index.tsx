@@ -46,30 +46,27 @@ export default function IncidentsScreen() {
     async function fetchIncidents() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
+        const res = await fetch('https://api.pulkitworks.info:5000/api/incidents', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 
         const contentType = res.headers.get('content-type');
         if (!res.ok || !contentType || !contentType.includes('application/json')) {
-          console.warn('Incidents endpoint not available, using local data');
+          console.warn('Incidents endpoint not available');
           return;
         }
 
         const data = await res.json();
-        // Dashboard can return incidents in 'incidents' or 'pending_incidents'
-        const incidentSource = data.data.incidents || data.data.pending_incidents || [];
-        
         if (data.status === 'success') {
-          const mappedIncidents = incidentSource.map((t: any) => ({
+          const mappedIncidents = (data.data || []).map((t: any) => ({
             id: t.id,
             code: String(t.id).substring(0, 8).toUpperCase(),
-            title: t.title || (t.description ? t.description.split('.')[0] : 'No Title'),
-            status: t.status || 'pending',
-            severity: t.severity || 'medium',
+            title: t.description ? t.description.split('.')[0] : 'No Title',
+            status: t.status || 'pending-verification',
+            severity: (t.severity || 'medium').toLowerCase(),
             zone: t.location || 'Unknown',
             date: t.created_at ? new Date(t.created_at).toLocaleDateString() : 'N/A',
-            reporter: t.reported_by || 'Unknown',
+            reporter: t.reporter || 'Unknown',
           }));
           setIncidents(mappedIncidents);
         }

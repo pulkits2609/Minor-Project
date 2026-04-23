@@ -25,12 +25,14 @@ type DashboardShortcut = {
 
 const roleQuickActions: Record<MineOpsRoleKey, DashboardShortcut[]> = {
   worker: [
+    { key: 'shifts', title: 'My shifts', detail: 'View your scheduled shifts.', icon: 'schedule', action: 'shifts' },
     { key: 'incidents', title: 'Report incident', detail: 'Capture severity, location, and witnesses.', icon: 'report', action: 'incidents' },
-    { key: 'attendance', title: 'Check in / out', detail: 'Shift attendance and coverage.', icon: 'schedule', action: 'attendance' },
+    { key: 'attendance', title: 'Check in / out', detail: 'Shift attendance and coverage.', icon: 'how-to-reg', action: 'attendance' },
     { key: 'tasks', title: 'View tasks', detail: 'Open assigned work for this shift.', icon: 'assignment', action: 'tasks' },
     { key: 'alerts', title: 'My alerts', detail: 'Review current warnings and notices.', icon: 'notifications', action: 'alerts' },
   ],
   supervisor: [
+    { key: 'shifts', title: 'Manage shifts', detail: 'Create and assign shifts.', icon: 'schedule', action: 'shifts' },
     { key: 'team', title: 'Team overview', detail: 'Crew status, attendance, and assignments.', icon: 'groups', action: 'team' },
     { key: 'tasks', title: 'Task board', detail: 'Track active work and priorities.', icon: 'assignment', action: 'tasks' },
     { key: 'incidents', title: 'Incidents', detail: 'Open incidents and escalations.', icon: 'report', action: 'incidents' },
@@ -49,6 +51,7 @@ const roleQuickActions: Record<MineOpsRoleKey, DashboardShortcut[]> = {
     { key: 'settings', title: 'Settings', detail: 'System preferences and security.', icon: 'settings', action: 'settings' },
   ],
   authority: [
+    { key: 'shifts', title: 'Shift oversight', detail: 'Oversight of all active shifts.', icon: 'schedule', action: 'shifts' },
     { key: 'analytics', title: 'Analytics', detail: 'Trends across productivity and safety.', icon: 'analytics', action: 'analytics' },
     { key: 'reports', title: 'Reports', detail: 'Generate compliance and management summaries.', icon: 'description', action: 'reports' },
     { key: 'users', title: 'User control', detail: 'Cross-site access and governance.', icon: 'person', action: 'users' },
@@ -122,6 +125,15 @@ export default function RoleDashboardScreen() {
           },
         });
         
+        if (response.status === 401) {
+          const { setGlobalAuthToken, setGlobalUserRole } = require('@/constants/auth');
+          const { router } = require('expo-router');
+          await setGlobalAuthToken(null);
+          await setGlobalUserRole(null);
+          router.replace('/login');
+          return;
+        }
+
         if (response.ok) {
           const { data, role } = await response.json();
           const newMetrics = [];
@@ -157,6 +169,28 @@ export default function RoleDashboardScreen() {
               tone: a.tone || 'warning',
               icon: a.icon || 'warning'
             })));
+          } else {
+            // Fallback: Fetch real alerts from dedicated endpoint if dashboard summary is empty
+            try {
+              const alertRes = await fetch('https://api.pulkitworks.info:5000/api/alerts', {
+                headers: { 'Authorization': `Bearer ${globalAuthToken}` },
+              });
+              if (alertRes.ok) {
+                const alertData = await alertRes.json();
+                if (alertData.status === 'success' && alertData.data.length > 0) {
+                  setDynamicAlerts(alertData.data.slice(0, 4).map((a: any) => ({
+                    title: a.title || 'System Alert',
+                    detail: `${a.type.charAt(0).toUpperCase() + a.type.slice(1)} • ${new Date(a.created_at).toLocaleTimeString()}`,
+                    tone: (a.type === 'critical' ? 'danger' : a.type === 'warning' ? 'warning' : 'success') as any,
+                    icon: a.type === 'critical' ? 'warning' : 'notifications'
+                  })));
+                } else {
+                  setDynamicAlerts([]); // Clear dummy data if no real alerts exist
+                }
+              }
+            } catch (err) {
+              console.warn('Fallback alerts fetch failed');
+            }
           }
         }
       } catch (error) {
@@ -206,7 +240,7 @@ export default function RoleDashboardScreen() {
         return;
       }
 
-      router.push({ pathname: '/(tabs)/incidents/index', params: { role: selectedRole.key } });
+      router.push({ pathname: '/incidents', params: { role: selectedRole.key } });
       return;
     }
 
@@ -217,6 +251,11 @@ export default function RoleDashboardScreen() {
 
     if (action === 'alerts') {
       router.push({ pathname: '/alerts', params: { role: selectedRole.key } });
+      return;
+    }
+
+    if (action === 'shifts') {
+      router.push({ pathname: '/shifts', params: { role: selectedRole.key } });
       return;
     }
 

@@ -96,8 +96,11 @@ def update_status():
     if not task:
         return jsonify({"error": "Task not found"}), 404
 
-    #Ownership check - only the assigned worker can update their task status
-    if str(task.assigned_to) != str(token_data["user_id"]):
+    # Ownership check - only the assigned worker or a supervisor can update task status
+    is_assignee = str(task.assigned_to) == str(token_data["user_id"])
+    is_supervisor = token_data.get("role") == "supervisor"
+
+    if not (is_assignee or is_supervisor):
         return jsonify({
             "error": "Forbidden - You can only update tasks assigned to you",
             "task_assigned_to": str(task.assigned_to),

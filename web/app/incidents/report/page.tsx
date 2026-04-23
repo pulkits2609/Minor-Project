@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 export const dynamic = 'force-dynamic';
 /* eslint-disable react-hooks/purity */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -7,6 +7,7 @@ import { AlertCircle, Plus, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api";
 
 export function ReportIncidentPage() {
   const searchParams = useSearchParams();
@@ -20,6 +21,7 @@ export function ReportIncidentPage() {
     type: "safety-hazard",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [reference, setReference] = useState("");
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -33,19 +35,35 @@ export function ReportIncidentPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({
-        title: "",
-        description: "",
-        zone: "Zone A",
-        severity: "medium",
-        type: "safety-hazard",
+    try {
+      const res: any = await apiFetch("/api/incidents", {
+        method: "POST",
+        body: JSON.stringify({
+          location: formData.zone,
+          severity: formData.severity,
+          description: `${formData.type.toUpperCase()}: ${formData.title}. ${formData.description}`,
+        }),
       });
-    }, 2000);
+
+      if (res.status === "success") {
+        setReference(res.reference || `INC-${res.id.substring(0, 8).toUpperCase()}`);
+        setSubmitted(true);
+        setTimeout(() => {
+          setSubmitted(false);
+          setFormData({
+            title: "",
+            description: "",
+            zone: "Zone A",
+            severity: "medium",
+            type: "safety-hazard",
+          });
+        }, 3000);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to submit incident");
+    }
   };
 
   return (
@@ -74,7 +92,7 @@ export function ReportIncidentPage() {
             <p className="text-gray-400">
               Your incident report has been submitted. Reference:{" "}
               <span className="font-semibold text-white">
-                INC-{Math.random().toString(36).substring(7).toUpperCase()}
+                {reference}
               </span>
             </p>
           </div>

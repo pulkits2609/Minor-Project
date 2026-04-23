@@ -128,7 +128,15 @@ export default function SettingsScreen() {
               />
               <View style={styles.dangerZone}>
                 <ThemedText style={{ color: palette.danger, fontSize: 14, fontWeight: '800', marginBottom: 4 }}>Danger Zone</ThemedText>
-                <Pressable style={({ pressed }) => [styles.logoutButton, { backgroundColor: palette.danger + '22', borderColor: palette.danger }, pressed && styles.pressed]}>
+                <Pressable 
+                  onPress={async () => {
+                    const { setGlobalAuthToken, setGlobalUserRole } = require('@/constants/auth');
+                    const { router } = require('expo-router');
+                    await setGlobalAuthToken(null);
+                    await setGlobalUserRole(null);
+                    router.replace('/login');
+                  }}
+                  style={({ pressed }) => [styles.logoutButton, { backgroundColor: palette.danger + '22', borderColor: palette.danger }, pressed && styles.pressed]}>
                   <ThemedText style={{ color: palette.danger, fontSize: 12, fontWeight: '800' }}>Logout All Sessions</ThemedText>
                 </Pressable>
               </View>

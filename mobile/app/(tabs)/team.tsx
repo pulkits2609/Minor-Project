@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -36,6 +36,7 @@ export default function TeamScreen() {
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
 
   useEffect(() => {
@@ -53,11 +54,17 @@ export default function TeamScreen() {
             role: t.role || 'worker',
             status: t.status || 'Active',
             avatar: t.avatar,
+            shift: t.shift || 'General Shift',
+            zone: t.zone || 'Unassigned',
+            tasks: t.tasks !== undefined ? t.tasks : 0,
+            attendance: t.attendance || 'Present'
           }));
           setTeamMembers(mappedTeam);
         }
       } catch (err) {
         console.error('Failed to fetch team members', err);
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchTeam();
@@ -143,6 +150,23 @@ export default function TeamScreen() {
               </View>
 
               <Pressable
+                onPress={() => {
+                  const { router } = require('expo-router');
+                  router.push({
+                    pathname: '/team/[id]',
+                    params: {
+                      id: member.id,
+                      name: member.name,
+                      role: member.role,
+                      status: member.status,
+                      shift: member.shift,
+                      zone: member.zone,
+                      tasks: member.tasks,
+                      attendance: member.attendance,
+                      avatar: member.avatar || ''
+                    }
+                  });
+                }}
                 style={({ pressed }) => [
                   styles.memberButton,
                   { backgroundColor: palette.tint + '22', borderColor: palette.tint },

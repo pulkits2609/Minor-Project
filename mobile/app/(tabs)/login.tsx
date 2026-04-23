@@ -19,13 +19,6 @@ import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
 
-const demoAccounts = [
-  { email: 'worker@coalmine.com', role: 'worker', title: 'Worker' },
-  { email: 'supervisor@coalmine.com', role: 'supervisor', title: 'Supervisor' },
-  { email: 'safety@coalmine.com', role: 'safety', title: 'Safety Officer' },
-  { email: 'admin@coalmine.com', role: 'admin', title: 'Administrator' },
-  { email: 'authority@coalmine.com', role: 'authority', title: 'Authority / Mine Ops' },
-] as const;
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -40,7 +33,6 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState(initialRole);
-  const [showDemo, setShowDemo] = useState(params.demo === 'true');
   const [isLoading, setIsLoading] = useState(false);
 
   const navigateToDashboard = (role: string) => {
@@ -52,7 +44,7 @@ export default function LoginScreen() {
       Alert.alert('Missing Fields', 'Please enter your email and password.');
       return;
     }
-    
+
     setIsLoading(true);
     try {
       const response = await fetch('https://api.pulkitworks.info:5000/auth/login', {
@@ -192,38 +184,6 @@ export default function LoginScreen() {
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </ThemedText>
             </Pressable>
-          </View>
-
-          <View style={styles.demoSection}>
-            <Pressable
-              onPress={() => setShowDemo((value) => !value)}
-              style={({ pressed }) => [styles.demoToggle, { borderColor: palette.border, backgroundColor: palette.surfaceElevated }, pressed && styles.pressed]}>
-              <ThemedText style={{ color: palette.tint, fontSize: 13, fontWeight: '800' }}>
-                {showDemo ? 'Hide Demo Accounts' : 'Demo Mode (Test Accounts)'}
-              </ThemedText>
-            </Pressable>
-
-            {showDemo && (
-              <View style={[styles.demoList, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
-                {demoAccounts.map((account) => (
-                  <Pressable
-                    key={account.email}
-                    onPress={() => navigateToDashboard(account.role)}
-                    style={({ pressed }) => [styles.demoItem, { backgroundColor: palette.surface, borderColor: palette.border }, pressed && styles.pressed]}>
-                    <View style={[styles.demoAvatar, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-                      <MaterialIcons name="person" size={18} color={palette.tint} />
-                    </View>
-                    <View style={styles.demoText}>
-                      <ThemedText style={{ fontSize: 14, fontWeight: '800' }}>{account.title}</ThemedText>
-                      <ThemedText style={{ color: palette.muted, fontSize: 12, lineHeight: 18 }}>
-                        {account.email}
-                      </ThemedText>
-                    </View>
-                    <MaterialIcons name="chevron-right" size={18} color={palette.muted} />
-                  </Pressable>
-                ))}
-              </View>
-            )}
           </View>
 
           <View style={styles.linkRow}>

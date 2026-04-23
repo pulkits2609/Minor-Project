@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View, ActivityIndicator, Platform } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { globalAuthToken } from '@/constants/auth';
 
@@ -33,7 +34,9 @@ export default function AttendanceScreen() {
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
 
-  const [selectedDate, setSelectedDate] = useState('2026-04-19');
+  const [date, setDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
+  const selectedDate = date.toISOString().split('T')[0];
 
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +79,64 @@ export default function AttendanceScreen() {
     total: attendance.length,
   };
 
+  const handleCheckAction = async (type: 'checkin' | 'checkout') => {
+    if (!globalAuthToken) return;
+    try {
+      // First, try to get the latest shift to check into
+      const shiftRes = await fetch('https://api.pulkitworks.info:5000/api/shifts', {
+        headers: { Authorization: `Bearer ${globalAuthToken}` },
+      });
+      const shiftData = await shiftRes.json();
+      const latestShift = shiftData.data?.[0];
+      
+      if (!latestShift && type === 'checkin') {
+        alert('No active shifts available to check into.');
+        return;
+      }
+
+      const res = await fetch(`https://api.pulkitworks.info:5000/api/attendance/${type}`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${globalAuthToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ shift_id: latestShift?.id || 'manual' })
+      });
+
+      if (res.ok) {
+        alert(`Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
+        // Refresh data
+        const refreshRes = await fetch('https://api.pulkitworks.info:5000/api/attendance', {
+          headers: { Authorization: `Bearer ${globalAuthToken}` },
+        });
+        const refreshData = await refreshRes.json();
+        if (refreshData.status === 'success') {
+          setAttendance(refreshData.data.map((item: any) => ({
+            id: item.id,
+            name: item.user_name || item.name || 'Worker',
+            checkIn: item.check_in_time || item.check_in || '—',
+            checkOut: item.check_out_time || item.check_out || '—',
+            status: (item.status?.charAt(0).toUpperCase() + item.status?.slice(1)) || 'Present',
+            duration: item.duration || '—'
+          })));
+        }
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || `Failed to ${type}`);
+      }
+    } catch (err) {
+      alert('Connection error');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: palette.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={palette.tint} />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
       <ScrollView
@@ -113,16 +174,23 @@ export default function AttendanceScreen() {
 
         <View style={styles.fieldGroup}>
           <ThemedText style={styles.label}>Select Date</ThemedText>
-          <View style={[styles.dateRow, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
+          <Pressable 
+            onPress={() => setShowPicker(true)}
+            style={[styles.dateRow, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
             <MaterialIcons name="event" size={18} color={palette.tint} />
-            <TextInput
-              value={selectedDate}
-              onChangeText={setSelectedDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={palette.muted}
-              style={[styles.dateInput, { color: palette.text }]}
+            <ThemedText style={{ color: palette.text, fontSize: 15 }}>{selectedDate}</ThemedText>
+          </Pressable>
+          {showPicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+                setShowPicker(false);
+                if (selectedDate) setDate(selectedDate);
+              }}
             />
-          </View>
+          )}
         </View>
 
         <View style={styles.statsGrid}>
@@ -144,6 +212,7 @@ export default function AttendanceScreen() {
         {selectedRole.key === 'worker' ? (
           <View style={styles.checkRow}>
             <Pressable
+              onPress={() => handleCheckAction('checkin')}
               style={({ pressed }) => [
                 styles.checkButton,
                 { backgroundColor: palette.success + '22', borderColor: palette.success },
@@ -154,6 +223,7 @@ export default function AttendanceScreen() {
             </Pressable>
 
             <Pressable
+              onPress={() => handleCheckAction('checkout')}
               style={({ pressed }) => [
                 styles.checkButton,
                 { backgroundColor: palette.danger + '22', borderColor: palette.danger },

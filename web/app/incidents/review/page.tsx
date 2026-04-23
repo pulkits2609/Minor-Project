@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Suspense } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -6,49 +6,47 @@ import { AlertCircle, CheckCircle2, Clock, MessageSquare } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api";
+import { useEffect } from "react";
 
 function IncidentReviewContent() {
   const searchParams = useSearchParams();
   const role = searchParams.get("role") || "worker";
 
-  const [filterStatus, setFilterStatus] = useState("pending");
-  const [selectedIncident, setSelectedIncident] = useState<number | null>(null);
+  const [filterStatus, setFilterStatus] = useState("pending-verification");
+  const [selectedIncident, setSelectedIncident] = useState<string | null>(null);
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [notes, setNotes] = useState("");
 
-  const incidents = [
-    {
-      id: 1,
-      code: "INC-3412",
-      title: "Gas leak report",
-      zone: "Zone C",
-      date: "Today 14:30",
-      severity: "critical",
-      status: "pending",
-      reporter: "R. Das",
-      description: "Strong gas smell detected near ventilation shaft",
-    },
-    {
-      id: 2,
-      code: "INC-3407",
-      title: "PPE violation Team C",
-      zone: "Zone B",
-      date: "Today 12:15",
-      severity: "high",
-      status: "assigned",
-      reporter: "Supervisor",
-      description: "Worker found without proper safety gear",
-    },
-    {
-      id: 3,
-      code: "INC-3398",
-      title: "Equipment heat anomaly",
-      zone: "Zone A",
-      date: "Yesterday 09:45",
-      severity: "medium",
-      status: "assigned",
-      reporter: "M. Khan",
-      description: "Pump showing abnormal temperature readings",
-    },
-  ];
+  useEffect(() => {
+    fetchIncidents();
+  }, []);
+
+  const fetchIncidents = async () => {
+    try {
+      const res: any = await apiFetch("/api/incidents");
+      if (res.status === "success") {
+        setIncidents(res.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch incidents", err);
+    }
+  };
+
+  const handleStatusUpdate = async (id: string, status: string) => {
+    try {
+      const res: any = await apiFetch(`/api/incidents/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, notes }),
+      });
+      if (res.status === "success") {
+        fetchIncidents();
+        setNotes("");
+      }
+    } catch (err: any) {
+      alert(err.message || "Update failed");
+    }
+  };
 
   const filteredIncidents = incidents.filter((i) => i.status === filterStatus);
   const current =
@@ -77,7 +75,7 @@ function IncidentReviewContent() {
           {/* INCIDENT LIST */}
           <div className="space-y-3">
             <div className="flex gap-2">
-              {["pending", "assigned", "resolved"].map((status) => (
+              {["pending-verification", "assigned", "resolved"].map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
@@ -87,7 +85,7 @@ function IncidentReviewContent() {
                       : "bg-neutral-800 text-gray-400 hover:bg-neutral-700"
                   }`}
                 >
-                  {status.toUpperCase()}
+                  {status.replace("-", " ").toUpperCase()}
                 </button>
               ))}
             </div>
@@ -103,8 +101,8 @@ function IncidentReviewContent() {
                       : "bg-neutral-800 border-neutral-700 hover:border-orange-600"
                   }`}
                 >
-                  <p className="font-semibold text-sm">{inc.code}</p>
-                  <p className="text-xs text-gray-400 mt-1">{inc.title}</p>
+                  <p className="font-semibold text-sm">INC-{inc.id.substring(0, 8).toUpperCase()}</p>
+                  <p className="text-xs text-gray-400 mt-1">{inc.description ? inc.description.split('.')[0] : 'No Title'}</p>
                   <span
                     className={`inline-block text-xs font-semibold mt-2 px-2 py-1 rounded ${
                       inc.severity === "critical"
@@ -128,8 +126,8 @@ function IncidentReviewContent() {
               <div>
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm text-gray-400 mb-2">{current.code}</p>
-                    <h3 className="text-2xl font-bold">{current.title}</h3>
+                    <p className="text-sm text-gray-400 mb-2">INC-{current.id.substring(0, 8).toUpperCase()}</p>
+                    <h3 className="text-2xl font-bold">{current.description ? current.description.split('.')[0] : 'Incident'}</h3>
                   </div>
                   <span
                     className={`px-4 py-2 rounded-lg text-sm font-semibold ${
@@ -149,11 +147,11 @@ function IncidentReviewContent() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="p-3 bg-neutral-800 rounded-lg">
                   <p className="text-xs text-gray-400 mb-1">Zone</p>
-                  <p className="font-semibold">{current.zone}</p>
+                  <p className="font-semibold">{current.location}</p>
                 </div>
                 <div className="p-3 bg-neutral-800 rounded-lg">
                   <p className="text-xs text-gray-400 mb-1">Date & Time</p>
-                  <p className="font-semibold text-sm">{current.date}</p>
+                  <p className="font-semibold text-sm">{new Date(current.created_at).toLocaleString()}</p>
                 </div>
                 <div className="p-3 bg-neutral-800 rounded-lg">
                   <p className="text-xs text-gray-400 mb-1">Reporter</p>
@@ -168,20 +166,26 @@ function IncidentReviewContent() {
               </div>
 
               {/* VERIFICATION SECTION */}
-              {current.status === "pending" && (
+              {current.status === "pending-verification" && (
                 <div className="border-t border-neutral-700 pt-6">
                   <h4 className="font-bold mb-4">Verification Required</h4>
                   <div className="space-y-3">
                     <textarea
                       placeholder="Verification notes..."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
                       rows={4}
                       className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
                     />
                     <div className="grid grid-cols-2 gap-3">
-                      <button className="py-3 bg-green-900/30 text-green-400 border border-green-700 rounded-lg hover:bg-green-900/50 transition font-semibold">
+                      <button 
+                        onClick={() => handleStatusUpdate(current.id, 'assigned')}
+                        className="py-3 bg-green-900/30 text-green-400 border border-green-700 rounded-lg hover:bg-green-900/50 transition font-semibold">
                         âœ“ Approve
                       </button>
-                      <button className="py-3 bg-red-900/30 text-red-400 border border-red-700 rounded-lg hover:bg-red-900/50 transition font-semibold">
+                      <button 
+                        onClick={() => handleStatusUpdate(current.id, 'resolved')}
+                        className="py-3 bg-red-900/30 text-red-400 border border-red-700 rounded-lg hover:bg-red-900/50 transition font-semibold">
                         âœ— Reject
                       </button>
                     </div>

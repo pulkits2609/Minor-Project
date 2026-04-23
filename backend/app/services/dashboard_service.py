@@ -31,34 +31,51 @@ def get_worker_dashboard(user_id):
 def get_supervisor_dashboard():
     total_workers = User.query.filter_by(role="worker").count()
     total_tasks = Task.query.count()
-    open_incidents = Incident.query.filter_by(status="active").count()
+    open_incidents_list = Incident.query.filter(Incident.status.in_(["pending-verification", "assigned"])).all()
 
     return {
         "team_members": [],  # TODO: fetch workers
         "stats": {
             "total_team": total_workers,
             "active_tasks": total_tasks,
-            "open_incidents": open_incidents,
+            "open_incidents": len(open_incidents_list),
             "attendance": "0/0"
         },
-        "incidents": [],
+        "incidents": [
+            {
+                "id": str(i.id),
+                "description": i.description,
+                "status": i.status,
+                "severity": i.severity
+            }
+            for i in open_incidents_list
+        ],
         "tasks": []
     }
 
 # SAFETY OFFICER
 def get_safety_dashboard():
-    incidents = Incident.query.all()
+    incidents = Incident.query.order_by(Incident.created_at.desc()).limit(10).all()
 
     return {
         "pending_incidents": [
             {
-                "id": i.id,
+                "id": str(i.id),
                 "severity": i.severity,
-                "status": i.status
+                "status": i.status,
+                "description": i.description,
+                "location": i.location
             }
             for i in incidents
         ],
-        "critical_hazards": [],
+        "critical_hazards": [
+            {
+                "id": str(i.id),
+                "description": i.description,
+                "location": i.location
+            }
+            for i in incidents if i.severity.lower() == "critical"
+        ],
         "risk_analysis": []
     }
 

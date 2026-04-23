@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 export const dynamic = 'force-dynamic';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -6,6 +6,8 @@ import { AlertCircle, Filter, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api";
+import { useEffect } from "react";
 
 export function IncidentsContent() {
   const searchParams = useSearchParams();
@@ -13,54 +15,29 @@ export function IncidentsContent() {
 
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const incidents = [
-    {
-      id: 1,
-      code: "INC-3412",
-      title: "Gas leak report",
-      zone: "Zone C",
-      date: "Today 14:30",
-      severity: "critical",
-      status: "pending-verification",
-      reporter: "R. Das",
-    },
-    {
-      id: 2,
-      code: "INC-3407",
-      title: "PPE violation Team C",
-      zone: "Zone B",
-      date: "Today 12:15",
-      severity: "high",
-      status: "assigned",
-      reporter: "Supervisor",
-    },
-    {
-      id: 3,
-      code: "INC-3398",
-      title: "Equipment heat anomaly",
-      zone: "Zone A",
-      date: "Yesterday 09:45",
-      severity: "medium",
-      status: "escalated",
-      reporter: "M. Khan",
-    },
-    {
-      id: 4,
-      code: "INC-3385",
-      title: "Ventilation warning",
-      zone: "Zone D",
-      date: "2 days ago",
-      severity: "low",
-      status: "resolved",
-      reporter: "Safety Officer",
-    },
-  ];
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      try {
+        const res: any = await apiFetch("/api/incidents");
+        if (res.status === "success") {
+          setIncidents(res.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch incidents", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchIncidents();
+  }, []);
 
   const filteredIncidents = incidents.filter((incident) => {
     const matchesSearch =
-      incident.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      incident.code.toLowerCase().includes(searchTerm.toLowerCase());
+      (incident.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (incident.id || "").toString().includes(searchTerm.toLowerCase());
     const matchesStatus =
       filterStatus === "all" || incident.status === filterStatus;
     return matchesSearch && matchesStatus;
@@ -174,17 +151,17 @@ export function IncidentsContent() {
                       <Link href={`/incidents/${incident.id}?role=${role}`}>
                         <div className="cursor-pointer hover:text-orange-400 transition">
                           <p className="font-semibold text-sm">
-                            {incident.code}
+                            INC-{incident.id.toString().substring(0, 8).toUpperCase()}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {incident.title}
+                            {incident.description.substring(0, 40)}...
                           </p>
                         </div>
                       </Link>
                     </td>
-                    <td className="py-4 px-4 text-sm">{incident.zone}</td>
+                    <td className="py-4 px-4 text-sm">{incident.location}</td>
                     <td className="py-4 px-4 text-sm text-gray-400">
-                      {incident.date}
+                      {new Date(incident.created_at).toLocaleDateString()}
                     </td>
                     <td className="py-4 px-4">
                       <span

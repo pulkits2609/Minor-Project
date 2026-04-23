@@ -2,9 +2,9 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -17,39 +17,63 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
+  const [expoPushToken, setExpoPushToken] = useState('');
 
   useEffect(() => {
     async function init() {
       await loadAuthState();
-      await registerForPushNotificationsAsync();
+      if (Constants.executionEnvironment !== 'storeClient') {
+        const token = await registerForPushNotificationsAsync();
+        if (token) {
+          setExpoPushToken(token);
+          // Backend is currently locked, but this is where we would normally call:
+          // fetch('/auth/profile/token', { method: 'PUT', body: JSON.stringify({ token }) })
+          console.log("Push Token Registered:", token);
+        }
+      }
       setIsReady(true);
     }
     init();
   }, []);
 
   async function registerForPushNotificationsAsync() {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-      });
-    }
+    try {
+      const Notifications = require('expo-notifications');
+      
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+      }
 
-    if (Device.isDevice) {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+      if (Device.isDevice) {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== 'granted') {
+          console.warn('Failed to get push token for push notification!');
+          return;
+        }
+        
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+        if (!projectId) {
+          console.warn('Project ID not found in app.json for push notifications');
+          return;
+        }
+
+        const pushTokenString = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        return pushTokenString;
+      } else {
+        console.warn('Must use physical device for Push Notifications');
       }
-      if (finalStatus !== 'granted') {
-        console.warn('Failed to get push token for push notification!');
-        return;
-      }
-    } else {
-      console.warn('Must use physical device for Push Notifications');
+    } catch (e) {
+      console.warn('Push notifications registration failed:', e);
     }
   }
 
