@@ -2,7 +2,7 @@ name: Build Mobile APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
     paths:
       - 'mobile/**'
   workflow_dispatch:
