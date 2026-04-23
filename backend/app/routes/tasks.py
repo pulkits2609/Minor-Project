@@ -94,7 +94,7 @@ def update_status():
         return jsonify({"error": "Task not found"}), 404
 
     #Ownership check
-    if task.assigned_to != token_data["user_id"]:
+    if str(task.assigned_to) != str(token_data["user_id"]):
         return jsonify({"error": "Unauthorized"}), 403
 
     #Update
