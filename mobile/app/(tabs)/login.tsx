@@ -18,6 +18,7 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
+import { normalizeRoleForApp } from '@/constants/roles';
 
 
 export default function LoginScreen() {
@@ -62,7 +63,7 @@ export default function LoginScreen() {
         return;
       }
 
-      const userRole = data.user?.role || selectedRole;
+      const userRole = normalizeRoleForApp(data.user?.role) ?? selectedRole;
       await setGlobalAuthToken(data.access_token);
       await setGlobalUserRole(userRole);
       navigateToDashboard(userRole);

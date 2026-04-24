@@ -218,7 +218,9 @@ export default function AttendanceScreen() {
                 { backgroundColor: palette.success + '22', borderColor: palette.success },
                 pressed && styles.pressed,
               ]}>
-              <MaterialIcons name="login" size={18} color={palette.success} />
+              <View style={[styles.checkIconWrap, { backgroundColor: palette.success + '26' }]}>
+                <MaterialIcons name="login" size={16} color={palette.success} />
+              </View>
               <ThemedText style={{ color: palette.success, fontSize: 13, fontWeight: '800' }}>Check In</ThemedText>
             </Pressable>
 
@@ -229,7 +231,9 @@ export default function AttendanceScreen() {
                 { backgroundColor: palette.danger + '22', borderColor: palette.danger },
                 pressed && styles.pressed,
               ]}>
-              <MaterialIcons name="logout" size={18} color={palette.danger} />
+              <View style={[styles.checkIconWrap, { backgroundColor: palette.danger + '26' }]}>
+                <MaterialIcons name="logout" size={16} color={palette.danger} />
+              </View>
               <ThemedText style={{ color: palette.danger, fontSize: 13, fontWeight: '800' }}>Check Out</ThemedText>
             </Pressable>
           </View>
@@ -375,13 +379,21 @@ const styles = StyleSheet.create({
   },
   checkButton: {
     flex: 1,
-    minHeight: 50,
+    minHeight: 54,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     flexDirection: 'row',
+    paddingHorizontal: 12,
+  },
+  checkIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   recordList: {
     gap: 12,

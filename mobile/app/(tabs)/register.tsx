@@ -16,8 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { toApiRole } from '@/constants/roles';
 
-const roleOptions = ['worker', 'supervisor', 'safety'] as const;
+const roleOptions = ['worker', 'supervisor', 'safety', 'admin', 'authority'] as const;
 
 type RequestedRole = (typeof roleOptions)[number];
 
@@ -77,7 +78,7 @@ export default function RegisterScreen() {
           name: formData.fullName,
           email: formData.email,
           password: formData.password,
-          role: formData.requestedRole,
+          role: toApiRole(formData.requestedRole),
         }),
       });
 

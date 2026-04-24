@@ -61,7 +61,15 @@ export default function IncidentReportScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!globalAuthToken) return;
+    if (!globalAuthToken) {
+      Alert.alert('Session Expired', 'Please login again to submit an incident.');
+      return;
+    }
+    if (!formState.title.trim() || !formState.description.trim()) {
+      Alert.alert('Missing Fields', 'Incident title and detailed description are required.');
+      return;
+    }
+
     try {
       const res = await fetch('https://api.pulkitworks.info:5000/incidents/smp/hazard', {
         method: 'POST',
@@ -71,10 +79,9 @@ export default function IncidentReportScreen() {
         },
         body: JSON.stringify({
           location: formState.zone,
-          hazard_description: `${formState.type}: ${formState.title}. ${formState.description}`,
-          probability: formState.severity === 'Critical' ? 4 : formState.severity === 'Warning' ? 2 : 1,
-          consequence: formState.severity === 'Critical' ? 4 : 2,
-          control_mechanism: 'Standard SMP Protocols'
+          severity: formState.severity,
+          description: formState.description.trim(),
+          hazard_description: `${formState.type}: ${formState.title.trim()}. ${formState.description.trim()}`,
         }),
       });
 
