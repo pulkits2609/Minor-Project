@@ -11,7 +11,6 @@ import {
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { ReportsContent } from "../reports/page";
 
 interface TaskRow {
   id: string;
@@ -49,6 +48,22 @@ export function TasksContent() {
     assigned_to: "",
   });
   const [isAssignSubmitting, setIsAssignSubmitting] = useState(false);
+  const [workers, setWorkers] = useState<{ id: string; name: string }[]>([]);
+  const [workersLoading, setWorkersLoading] = useState(false);
+
+  const openAssignModal = async () => {
+    setIsAssignOpen(true);
+    if (workers.length > 0) return; // already fetched
+    setWorkersLoading(true);
+    try {
+      const res = await apiFetch<{ status: string; data: { id: string; name: string }[] }>("/api/tasks/workers");
+      setWorkers(res.data || []);
+    } catch {
+      // non-fatal — supervisor can still see an empty list
+    } finally {
+      setWorkersLoading(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -143,14 +158,14 @@ export function TasksContent() {
           {(role === "supervisor" ||
             role === "admin" ||
             role === "authority") && (
-              <button
-                onClick={() => setIsAssignOpen(true)}
-                className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg font-semibold transition flex items-center gap-2"
-              >
-                <Plus size={20} />
-                Assign Task
-              </button>
-            )}
+            <button
+              onClick={openAssignModal}
+              className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg font-semibold transition flex items-center gap-2"
+            >
+              <Plus size={20} />
+              Assign Task
+            </button>
+          )}
         </div>
 
         {error && (
@@ -205,10 +220,11 @@ export function TasksContent() {
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${filterStatus === status
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
+                  filterStatus === status
                     ? "bg-orange-600 text-white"
                     : "bg-neutral-800 text-gray-400 hover:bg-neutral-700"
-                  }`}
+                }`}
               >
                 {status.replace("-", " ").toUpperCase()}
               </button>
@@ -231,10 +247,11 @@ export function TasksContent() {
             >
               <div className="flex items-start justify-between mb-3">
                 <button
-                  className={`text-2xl transition hover:scale-110 ${task.status === "completed"
+                  className={`text-2xl transition hover:scale-110 ${
+                    task.status === "completed"
                       ? "text-green-400"
                       : "text-gray-400 hover:text-orange-400"
-                    }`}
+                  }`}
                   onClick={() =>
                     updateStatus(
                       task.id,
@@ -253,12 +270,13 @@ export function TasksContent() {
                   )}
                 </button>
                 <span
-                  className={`px-3 py-1 rounded text-xs font-semibold ${task.priority === "high"
+                  className={`px-3 py-1 rounded text-xs font-semibold ${
+                    task.priority === "high"
                       ? "bg-red-900/30 text-red-400"
                       : task.priority === "medium"
                         ? "bg-yellow-900/30 text-yellow-400"
                         : "bg-green-900/30 text-green-400"
-                    }`}
+                  }`}
                 >
                   {task.priority.toUpperCase()}
                 </span>
@@ -285,10 +303,11 @@ export function TasksContent() {
               </div>
 
               <button
-                className={`w-full py-2 rounded font-semibold text-sm transition ${task.status === "completed"
+                className={`w-full py-2 rounded font-semibold text-sm transition ${
+                  task.status === "completed"
                     ? "bg-neutral-800 text-gray-400"
                     : "bg-orange-600/20 text-orange-400 border border-orange-600/30 hover:bg-orange-600/30"
-                  }`}
+                }`}
               >
                 {task.status === "completed"
                   ? "Completed"
@@ -307,7 +326,7 @@ export function TasksContent() {
                 <div>
                   <h3 className="text-xl font-bold">Assign Task</h3>
                   <p className="text-sm text-gray-400 mt-1">
-                    Supervisor only. Use a valid user id in <span className="text-white">assigned_to</span>.
+                    Select a worker from the list to assign the task.
                   </p>
                 </div>
                 <button
@@ -361,17 +380,24 @@ export function TasksContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 mb-2 block">
-                      assigned_to (user id)
-                    </label>
-                    <input
+                    <label className="text-xs text-gray-400 mb-2 block">Assign to Worker</label>
+                    <select
                       value={assignForm.assigned_to}
                       onChange={(e) =>
                         setAssignForm((p) => ({ ...p, assigned_to: e.target.value }))
                       }
                       className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-                      placeholder="UUID"
-                    />
+                      disabled={workersLoading}
+                    >
+                      <option value="">
+                        {workersLoading ? "Loading workers…" : "Select a worker"}
+                      </option>
+                      {workers.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -401,7 +427,7 @@ export function TasksContent() {
 
 export default function TasksPage() {
   return (
-    <Suspense fallback={<div>Loading tasks...</div>}>
+    <Suspense fallback={<div>Loading team...</div>}>
       <TasksContent />
     </Suspense>
   );
