@@ -9,7 +9,7 @@ import {
   Search,
 } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 interface TaskRow {
@@ -26,7 +26,7 @@ interface TasksResponse {
   data: TaskRow[];
 }
 
-export default function TasksPage() {
+export function TasksContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const pathParts = pathname.split("/").filter(Boolean);
@@ -422,5 +422,13 @@ export default function TasksPage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<div>Loading team...</div>}>
+      <TasksContent />
+    </Suspense>
   );
 }
