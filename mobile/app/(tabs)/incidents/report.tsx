@@ -85,9 +85,8 @@ export default function IncidentReportScreen() {
         }),
       });
 
-      // Handle non-JSON responses (e.g. 404 HTML pages) gracefully
       const contentType = res.headers.get('content-type');
-      if (!res.ok || !contentType || !contentType.includes('application/json')) {
+      if (!contentType || !contentType.includes('application/json')) {
         const text = await res.text();
         console.error('Incident API error:', text);
         Alert.alert('Error', 'Server returned an invalid response.');
@@ -95,11 +94,17 @@ export default function IncidentReportScreen() {
       }
 
       const data = await res.json();
+      
+      if (!res.ok) {
+        Alert.alert('Error', data.error || data.message || 'Failed to submit incident');
+        return;
+      }
+
       if (data.status === 'success') {
         setReference(data.reference);
         setSubmitted(true);
       } else {
-        Alert.alert('Error', data.message || 'Failed to submit incident');
+        Alert.alert('Error', data.message || data.error || 'Failed to submit incident');
       }
     } catch (err) {
       console.error('Failed to submit incident', err);
