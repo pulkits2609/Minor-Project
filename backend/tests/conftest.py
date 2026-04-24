@@ -1,35 +1,33 @@
-import os
 import pytest
-from app import create_app
-from app.extensions import db
-from app.config import Config
+import requests
+import urllib3
 
-class TestConfig(Config):
-    TESTING = True
-    # Use SQLite memory DB for temporary runtime testing
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
-    WTF_CSRF_ENABLED = False
-    SECRET_KEY = 'test-secret'
-    JWT_SECRET_KEY = 'test-jwt-secret'
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-@pytest.fixture
-def app():
-    """Create and configure a new app instance for each test."""
-    app = create_app(TestConfig)
+BASE_URL = "https://api.pulkitworks.info:5000"
 
-    # Establish an application context before running the tests.
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.session.remove()
-        db.drop_all()
+USERS = {
+    "worker": {"email": "pulkit@gmail.com", "password": "123456"},
+    "supervisor": {"email": "supervisor@gmail.com", "password": "123456"},
+    "safety": {"email": "safety@gmail.com", "password": "123456"},
+    "admin": {"email": "admin@gmail.com", "password": "123456"},
+    "authority": {"email": "authority@gmail.com", "password": "123456"},
+}
 
-@pytest.fixture
-def client(app):
-    """A test client for the app."""
-    return app.test_client()
+def login(email, password):
+    res = requests.post(
+        f"{BASE_URL}/auth/login",
+        json={"email": email, "password": password},
+        verify=False
+    )
+    if res.status_code == 200:
+        return res.json().get("access_token")
+    return None
 
-@pytest.fixture
-def runner(app):
-    """A test runner for the app's Click commands."""
-    return app.test_cli_runner()
+
+@pytest.fixture(scope="session")
+def tokens():
+    return {
+        role: login(user["email"], user["password"])
+        for role, user in USERS.items()
+    }
