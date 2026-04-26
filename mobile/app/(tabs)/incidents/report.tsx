@@ -9,7 +9,8 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
-import { globalAuthToken } from '@/constants/auth';
+import { globalAuthToken, loadAuthState } from '@/constants/auth';
+import { apiFetchWithFallback } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 
@@ -61,7 +62,13 @@ export default function IncidentReportScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!globalAuthToken) {
+    let authToken = globalAuthToken;
+    if (!authToken) {
+      const { token } = await loadAuthState();
+      authToken = token;
+    }
+
+    if (!authToken) {
       Alert.alert('Session Expired', 'Please login again to submit an incident.');
       return;
     }
@@ -71,19 +78,25 @@ export default function IncidentReportScreen() {
     }
 
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/incidents/smp/hazard', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${globalAuthToken}`,
+      const payload = {
+        location: formState.zone,
+        severity: formState.severity,
+        description: formState.description.trim(),
+        hazard_description: `${formState.type}: ${formState.title.trim()}. ${formState.description.trim()}`,
+      };
+
+      const res = await apiFetchWithFallback(
+        '/api/incidents',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify({
-          location: formState.zone,
-          severity: formState.severity,
-          description: formState.description.trim(),
-          hazard_description: `${formState.type}: ${formState.title.trim()}. ${formState.description.trim()}`,
-        }),
-      });
+        ['/incidents/smp/hazard']
+      );
 
       const contentType = res.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {

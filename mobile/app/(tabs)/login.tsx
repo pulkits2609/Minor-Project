@@ -19,6 +19,7 @@ import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
 import { normalizeRoleForApp } from '@/constants/roles';
+import { apiFetchWithFallback } from '@/constants/api';
 
 
 export default function LoginScreen() {
@@ -48,7 +49,7 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch('https://api.pulkitworks.info:5000/auth/login', {
+      const response = await apiFetchWithFallback('/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useRouter } from 'expo-router';
+import { apiFetchWithFallback } from '@/constants/api';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -69,7 +70,7 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch('https://api.pulkitworks.info:5000/auth/register', {
+      const response = await apiFetchWithFallback('/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
