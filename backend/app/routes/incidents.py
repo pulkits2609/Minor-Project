@@ -4,7 +4,8 @@ from app.services.incident_service import (
     report_incident,
     get_all_incidents,
     get_incidents_by_user,
-    update_incident_status
+    update_incident_status,
+    get_incident_by_id
 )
 
 incidents_bp = Blueprint("incidents", __name__)
@@ -48,7 +49,7 @@ def change_status(id):
     if "error" in token_data:
         return jsonify({"error": token_data["error"]}), 401
     
-    if token_data["role"] not in ["supervisor", "safety_officer", "admin"]:
+    if token_data["role"] not in ["supervisor", "safety_officer", "admin", "authority"]:
         return jsonify({"error": "Unauthorized"}), 403
     
     data = request.get_json()
@@ -59,4 +60,19 @@ def change_status(id):
     success = update_incident_status(id, status)
     return jsonify({
         "status": "success" if success else "failed"
+    })
+
+@incidents_bp.route("/api/incidents/<id>", methods=["GET"])
+def get_incident(id):
+    token_data = verify_token(request)
+    if "error" in token_data:
+        return jsonify({"error": token_data["error"]}), 401
+    
+    incident = get_incident_by_id(id)
+    if not incident:
+        return jsonify({"error": "Incident not found"}), 404
+        
+    return jsonify({
+        "status": "success",
+        "data": incident
     })

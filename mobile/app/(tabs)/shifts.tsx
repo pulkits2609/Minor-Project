@@ -67,7 +67,7 @@ export default function ShiftsScreen() {
       if (!res.ok || !contentType || !contentType.includes('application/json')) {
         const text = await res.text();
         console.error('Shifts API error:', text);
-        setIsLoading(false);
+        setLoading(false);
         return;
       }
 

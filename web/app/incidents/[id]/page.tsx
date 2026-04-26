@@ -9,49 +9,54 @@ export default function IncidentDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const role = searchParams.get("role") || "worker";
-  const id = params.id;
+  const id = params.id as string;
 
-  // Mock incident data
-  const incident = {
-    id,
-    code: "INC-3412",
-    title: "Gas leak report",
-    description:
-      "Strong gas smell detected near the ventilation shaft in Zone C. The area has been evacuated as a precaution.",
-    zone: "Zone C",
-    date: "2026-04-19",
-    time: "14:30",
-    severity: "critical",
-    status: "pending-verification",
-    reporter: { name: "R. Das", role: "Worker", id: "EMP001" },
-    assignedTo: { name: "Safety Officer", id: "SO001" },
-    timeline: [
-      {
-        time: "14:30",
-        action: "Incident reported",
-        actor: "R. Das",
-        status: "created",
-      },
-      {
-        time: "14:32",
-        action: "Safety team notified",
-        actor: "System",
-        status: "alert",
-      },
-      {
-        time: "14:45",
-        action: "Area evacuated",
-        actor: "Supervisor M. Khan",
-        status: "action",
-      },
-      {
-        time: "15:00",
-        action: "Waiting for verification",
-        actor: "Safety Officer",
-        status: "pending",
-      },
-    ],
-  };
+  const [incident, setIncident] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchIncident = async () => {
+      try {
+        const res: any = await apiFetch(`/api/incidents/${id}`);
+        if (res.status === "success") {
+          setIncident(res.data);
+        } else {
+          setError(res.error || "Failed to load incident");
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to fetch incident details");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchIncident();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-gray-400">Loading incident details...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !incident) {
+    return (
+      <DashboardLayout>
+        <div className="p-8 text-center space-y-4">
+          <AlertCircle className="mx-auto text-red-500" size={48} />
+          <h2 className="text-2xl font-bold text-red-400">Error</h2>
+          <p className="text-gray-400">{error || "Incident not found"}</p>
+          <Link href={`/incidents?role=${role}`} className="text-orange-400 hover:underline">
+            Back to Incidents
+          </Link>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -66,8 +71,8 @@ export default function IncidentDetailPage() {
           </Link>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-gray-400 mb-2">{incident.code}</p>
-              <h2 className="text-3xl font-bold mb-2">{incident.title}</h2>
+              <p className="text-sm text-gray-400 mb-2">INC-{incident.id.substring(0, 8).toUpperCase()}</p>
+              <h2 className="text-3xl font-bold mb-2">Incident Report</h2>
             </div>
             <span
               className={`px-4 py-2 rounded-lg text-sm font-semibold ${incident.severity === "critical"
@@ -110,35 +115,30 @@ export default function IncidentDetailPage() {
               </p>
             </div>
 
-            {/* TIMELINE */}
+            {/* TIMELINE - Backend currently doesn't have a timeline table, showing basic info */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-              <h3 className="text-xl font-bold mb-6">Incident Timeline</h3>
+              <h3 className="text-xl font-bold mb-6">Incident History</h3>
               <div className="space-y-4">
-                {incident.timeline.map((event, idx) => (
-                  <div key={idx} className="flex gap-4">
+                  <div className="flex gap-4">
                     <div className="flex flex-col items-center">
-                      <div
-                        className={`w-3 h-3 rounded-full ${event.status === "created"
-                            ? "bg-blue-500"
-                            : event.status === "alert"
-                              ? "bg-red-500"
-                              : event.status === "action"
-                                ? "bg-orange-500"
-                                : "bg-yellow-500"
-                          }`}
-                      ></div>
-                      {idx < incident.timeline.length - 1 && (
-                        <div className="w-0.5 h-12 bg-neutral-700 mt-2"></div>
-                      )}
+                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                      <div className="w-0.5 h-8 bg-neutral-700 mt-2"></div>
                     </div>
-                    <div className="pb-4">
-                      <p className="font-semibold">{event.action}</p>
+                    <div>
+                      <p className="font-semibold">Reported</p>
                       <p className="text-sm text-gray-400 mt-1">
-                        {event.actor} • {event.time}
+                        {incident.reporter} • {new Date(incident.created_at).toLocaleString()}
                       </p>
                     </div>
                   </div>
-                ))}
+                  <div className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-3 h-3 rounded-full ${incident.status === 'resolved' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Current Status: {incident.status.toUpperCase()}</p>
+                    </div>
+                  </div>
               </div>
             </div>
           </div>
@@ -153,23 +153,25 @@ export default function IncidentDetailPage() {
                 <p className="text-xs text-gray-400 mb-1">Zone</p>
                 <div className="flex items-center gap-2">
                   <MapPin size={14} className="text-orange-400" />
-                  <p className="font-semibold">{incident.zone}</p>
+                  <p className="font-semibold">{incident.location}</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-xs text-gray-400 mb-1">Date & Time</p>
+                <p className="text-xs text-gray-400 mb-1">Reported At</p>
                 <div className="flex items-center gap-2">
                   <Calendar size={14} className="text-blue-400" />
                   <p className="font-semibold">
-                    {incident.date} at {incident.time}
+                    {new Date(incident.created_at).toLocaleDateString()}
                   </p>
                 </div>
               </div>
 
               <div>
                 <p className="text-xs text-gray-400 mb-1">Status</p>
-                <span className="inline-block px-3 py-1 bg-yellow-900/30 text-yellow-400 rounded text-xs font-semibold">
+                <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
+                  incident.status === "resolved" ? "bg-green-900/30 text-green-400" : "bg-yellow-900/30 text-yellow-400"
+                }`}>
                   {incident.status.replace("-", " ").toUpperCase()}
                 </span>
               </div>
@@ -180,50 +182,37 @@ export default function IncidentDetailPage() {
               <h3 className="font-bold mb-4">Reporter</h3>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center font-bold">
-                  {incident.reporter.name.charAt(0)}
+                  {incident.reporter.charAt(0)}
                 </div>
                 <div>
                   <p className="font-semibold text-sm">
-                    {incident.reporter.name}
+                    {incident.reporter}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {incident.reporter.role}
+                    {incident.reporter_role || "Staff"}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* ASSIGNED TO */}
-            {incident.assignedTo && (
-              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-                <h3 className="font-bold mb-4">Assigned To</h3>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center font-bold">
-                    {incident.assignedTo.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">
-                      {incident.assignedTo.name}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* ACTIONS */}
-            {(role === "safety" ||
+            {(role === "supervisor" ||
+              role === "safety_officer" ||
               role === "admin" ||
               role === "authority") && (
                 <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-3">
-                  <h3 className="font-bold mb-4">Actions</h3>
-                  <button className="w-full px-4 py-2 bg-green-900/30 text-green-400 border border-green-700 rounded hover:bg-green-900/50 transition font-semibold text-sm">
-                    Approve
+                  <h3 className="font-bold mb-4">Update Status</h3>
+                  <button 
+                    onClick={() => updateIncidentStatus("resolved")}
+                    className="w-full px-4 py-2 bg-green-900/30 text-green-400 border border-green-700 rounded hover:bg-green-900/50 transition font-semibold text-sm"
+                  >
+                    Mark Resolved
                   </button>
-                  <button className="w-full px-4 py-2 bg-blue-900/30 text-blue-400 border border-blue-700 rounded hover:bg-blue-900/50 transition font-semibold text-sm">
-                    Request Review
-                  </button>
-                  <button className="w-full px-4 py-2 bg-orange-900/30 text-orange-400 border border-orange-700 rounded hover:bg-orange-900/50 transition font-semibold text-sm">
-                    Escalate
+                  <button 
+                    onClick={() => updateIncidentStatus("assigned")}
+                    className="w-full px-4 py-2 bg-blue-900/30 text-blue-400 border border-blue-700 rounded hover:bg-blue-900/50 transition font-semibold text-sm"
+                  >
+                    Assign Team
                   </button>
                 </div>
               )}
@@ -232,4 +221,18 @@ export default function IncidentDetailPage() {
       </div>
     </DashboardLayout>
   );
+
+  async function updateIncidentStatus(status: string) {
+    try {
+      await apiFetch(`/api/incidents/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      setIncident((prev: any) => ({ ...prev, status }));
+      alert("Status updated successfully");
+    } catch (err: any) {
+      alert(err.message || "Failed to update status");
+    }
+  }
+}
 }

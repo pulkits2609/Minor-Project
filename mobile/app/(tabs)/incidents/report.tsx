@@ -34,7 +34,7 @@ const ZONES = ['Zone A', 'Zone B', 'Zone C', 'Zone D'];
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
 export default function IncidentReportScreen() {
-  useProtectedRoute(['worker', 'supervisor', 'safety']);
+  useProtectedRoute(['worker', 'supervisor', 'safety_officer']);
 
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];

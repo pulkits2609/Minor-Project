@@ -161,7 +161,7 @@ export default function IncidentDetailScreen() {
           </View>
         ) : null}
 
-        {(selectedRole.key === 'safety' || selectedRole.key === 'admin' || selectedRole.key === 'authority') ? (
+        {(selectedRole.key === 'safety_officer' || selectedRole.key === 'admin' || selectedRole.key === 'authority') ? (
           <View style={[styles.card, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
             <ThemedText type="subtitle">Actions</ThemedText>
             <View style={styles.actionStack}>

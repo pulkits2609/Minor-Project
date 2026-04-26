@@ -55,14 +55,21 @@ def login_user(data):
         return {"error": "Email and password required"}, 400
 
     # Find user (by email or employee_id)
-    user = User.query.filter(or_(User.email == email, User.employee_id == email)).first()
+    try:
+        user = User.query.filter(or_(User.email == email, User.employee_id == email)).first()
+    except Exception:
+        # Fallback for environments where migrations haven't run yet
+        user = User.query.filter_by(email=email).first()
+
+    # Generic error for security (prevents user enumeration)
+    invalid_error = {"error": "Invalid email/ID or password"}, 401
 
     if not user:
-        return {"error": "User not found or invalid identifier"}, 404
+        return invalid_error
 
     # Verify password
     if not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
-        return {"error": "Invalid credentials"}, 401
+        return invalid_error
 
     # Generate JWT
     token = generate_token(user)

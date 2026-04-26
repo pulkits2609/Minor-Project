@@ -52,7 +52,7 @@ export function IncidentsContent() {
             <h2 className="text-3xl font-bold mb-2">Incidents</h2>
             <p className="text-gray-400">Manage and track safety incidents</p>
           </div>
-          {(role === "worker" || role === "supervisor") && (
+          {(role === "worker" || role === "supervisor" || role === "safety_officer") && (
             <Link href={`/incidents/report?role=${role}`}>
               <button className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg font-semibold transition">
                 + Report Incident

@@ -45,15 +45,18 @@ def check_out(user_id, shift_id):
 def get_attendance(user_id, role):
     if role == "worker":
         query = text("""
-            SELECT * FROM attendance
-            WHERE user_id = :user_id
+            SELECT a.*, u.name as user_name
+            FROM attendance a
+            JOIN users u ON a.user_id = u.id
+            WHERE a.user_id = :user_id
         """)
         result = db.session.execute(query, {"user_id": user_id}).fetchall()
 
     else:
         query = text("""
-            SELECT a.*
+            SELECT a.*, u.name as user_name
             FROM attendance a
+            JOIN users u ON a.user_id = u.id
             JOIN shifts s ON a.shift_id = s.id
             WHERE s.created_by = :user_id
         """)

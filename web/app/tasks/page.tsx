@@ -93,9 +93,9 @@ export function TasksContent() {
         .includes(searchTerm.toLowerCase());
       const matchesStatus =
         filterStatus === "all" ||
-        (filterStatus === "pending"
+        (filterStatus === "assigned"
           ? task.status === "assigned"
-          : filterStatus === "in-progress"
+          : filterStatus === "in_progress"
             ? task.status === "in_progress"
             : task.status === "completed");
       return matchesSearch && matchesStatus;
@@ -216,7 +216,7 @@ export function TasksContent() {
             />
           </div>
           <div className="flex gap-2">
-            {["all", "pending", "in-progress", "completed"].map((status) => (
+            {["all", "assigned", "in_progress", "completed"].map((status) => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
@@ -226,7 +226,7 @@ export function TasksContent() {
                     : "bg-neutral-800 text-gray-400 hover:bg-neutral-700"
                 }`}
               >
-                {status.replace("-", " ").toUpperCase()}
+                {status.replace("_", " ").toUpperCase()}
               </button>
             ))}
           </div>

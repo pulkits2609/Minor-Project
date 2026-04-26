@@ -29,7 +29,7 @@ type IncidentItem = {
 };
 
 export default function IncidentsScreen() {
-  useProtectedRoute(['worker', 'supervisor', 'safety', 'authority']);
+  useProtectedRoute(['worker', 'supervisor', 'safety_officer', 'authority']);
 
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];

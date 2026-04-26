@@ -1,7 +1,8 @@
 import requests
 import uuid
 
-BASE_URL = "https://api.pulkitworks.info:5000"
+import os
+BASE_URL = os.getenv("API_URL", "http://127.0.0.1:5000")
 
 
 def test_register_success():

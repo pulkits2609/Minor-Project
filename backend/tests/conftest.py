@@ -2,9 +2,10 @@ import pytest
 import requests
 import urllib3
 
+import os
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-BASE_URL = "https://api.pulkitworks.info:5000"
+BASE_URL = os.getenv("API_URL", "http://127.0.0.1:5000")
 
 USERS = {
     "worker": {"email": "pulkit@gmail.com", "password": "123456"},

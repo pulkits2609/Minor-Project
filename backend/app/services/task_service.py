@@ -4,10 +4,12 @@ from sqlalchemy import text
 #Get tasks for logged-in user
 def get_tasks(user_id):
     query = text("""
-        SELECT id, task_name, description, priority, status, created_at
-        FROM tasks
-        WHERE assigned_to = :user_id
-        ORDER BY created_at DESC
+        SELECT t.id, t.task_name, t.description, t.priority, t.status,
+               u.name as assigned_to, t.created_at
+        FROM tasks t
+        LEFT JOIN users u ON t.assigned_to = u.id
+        WHERE t.assigned_to = :user_id
+        ORDER BY t.created_at DESC
     """)
 
     result = db.session.execute(query, {"user_id": user_id}).fetchall()

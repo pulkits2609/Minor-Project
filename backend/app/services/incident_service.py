@@ -55,3 +55,13 @@ def update_incident_status(incident_id, status):
     result = db.session.execute(query, {"id": incident_id, "status": status}).fetchone()
     db.session.commit()
     return result is not None
+
+def get_incident_by_id(incident_id):
+    query = text("""
+        SELECT i.id, i.location, i.severity, i.description, i.status, i.created_at, u.name as reporter, u.role as reporter_role
+        FROM incidents i
+        LEFT JOIN users u ON i.reported_by = u.id
+        WHERE i.id = :id
+    """)
+    result = db.session.execute(query, {"id": incident_id}).fetchone()
+    return dict(result._mapping) if result else None

@@ -14,7 +14,7 @@ import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 import { globalAuthToken } from '@/constants/auth';
 
 type Palette = typeof Colors.dark;
-type TaskStatus = 'pending' | 'in-progress' | 'completed';
+type TaskStatus = 'assigned' | 'in_progress' | 'completed';
 type TaskPriority = 'high' | 'medium' | 'low';
 
 type TaskItem = {
@@ -28,7 +28,7 @@ type TaskItem = {
   status: TaskStatus;
 };
 
-const FILTERS: ('all' | TaskStatus)[] = ['all', 'pending', 'in-progress', 'completed'];
+const FILTERS: ('all' | TaskStatus)[] = ['all', 'assigned', 'in_progress', 'completed'];
 
 export default function TasksScreen() {
   useProtectedRoute(['worker', 'supervisor', 'admin', 'authority']);
@@ -74,7 +74,7 @@ export default function TasksScreen() {
               zone: t.location || 'Site Wide',
               dueDate: t.due_date || 'N/A',
               priority: (t.priority || 'medium').toLowerCase(),
-              status: (t.status || 'assigned').replace('_', ' '),
+              status: (t.status || 'assigned') as TaskStatus,
             }));
             setTasks(mappedTasks);
           }
@@ -145,7 +145,7 @@ export default function TasksScreen() {
             zone: t.location || 'Site Wide',
             dueDate: t.due_date || 'N/A',
             priority: (t.priority || 'medium').toLowerCase(),
-            status: (t.status || 'assigned').replace('_', ' '),
+            status: (t.status || 'assigned') as TaskStatus,
           })));
         }
       } else {
@@ -161,7 +161,7 @@ export default function TasksScreen() {
     
     let nextStatus = '';
     if (currentStatus === 'assigned') nextStatus = 'in_progress';
-    else if (currentStatus === 'in progress') nextStatus = 'completed';
+    else if (currentStatus === 'in_progress') nextStatus = 'completed';
     else return;
 
     try {
@@ -180,7 +180,7 @@ export default function TasksScreen() {
       const data = await res.json();
       if (res.ok) {
         // Optimistically update the UI or re-fetch
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: nextStatus.replace('_', ' ') as any } : t));
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: nextStatus as TaskStatus } : t));
         Alert.alert('Success', `Task marked as ${nextStatus.replace('_', ' ')}`);
       } else {
         Alert.alert('Error', data.error || 'Failed to update task');
@@ -242,8 +242,8 @@ export default function TasksScreen() {
         <View style={styles.statsGrid}>
           {[
             { label: 'Total Tasks', value: String(tasks.length), tone: '#60a5fa', bg: '#60a5fa22' },
-            { label: 'In Progress', value: String(tasks.filter((task) => task.status === 'in-progress').length), tone: palette.warning, bg: palette.warning + '22' },
-            { label: 'Pending', value: String(tasks.filter((task) => task.status === 'pending').length), tone: '#eab308', bg: '#eab30822' },
+            { label: 'In Progress', value: String(tasks.filter((task) => task.status === 'in_progress').length), tone: palette.warning, bg: palette.warning + '22' },
+            { label: 'Assigned', value: String(tasks.filter((task) => task.status === 'assigned').length), tone: '#eab308', bg: '#eab30822' },
             { label: 'Completed', value: String(tasks.filter((task) => task.status === 'completed').length), tone: palette.success, bg: palette.success + '22' },
           ].map((item) => (
             <View key={item.label} style={[styles.statCard, { backgroundColor: item.bg, borderColor: palette.border }]}>
@@ -285,7 +285,7 @@ export default function TasksScreen() {
                   fontSize: 12,
                   fontWeight: '800',
                 }}>
-                {status.replace('-', ' ').toUpperCase()}
+                {status.replace(/_/g, ' ').toUpperCase()}
               </ThemedText>
             </Pressable>
           ))}
@@ -353,7 +353,7 @@ export default function TasksScreen() {
                     fontWeight: '800',
                   }}>
                   {task.status === 'assigned' ? 'Start Task' : 
-                   task.status === 'in-progress' ? 'Complete Task' : 'Completed'}
+                   task.status === 'in_progress' ? 'Complete Task' : 'Completed'}
                 </ThemedText>
               </Pressable>
             </View>

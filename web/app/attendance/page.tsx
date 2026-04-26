@@ -392,7 +392,7 @@ function AttendanceContent() {
                     className="hover:bg-neutral-800/50 transition"
                   >
                     <td className="py-4 px-4 font-semibold">
-                      {person.user_id}
+                      {person.user_name || person.user_id}
                     </td>
                     <td className="py-4 px-4 text-center">
                       <div className="flex items-center justify-center gap-2">
