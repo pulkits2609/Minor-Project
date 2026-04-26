@@ -36,7 +36,7 @@ export default function IncidentReviewScreen() {
   const fetchIncidents = async () => {
     if (!globalAuthToken) return;
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/incidents', {
+      const res = await fetch('https://api.pulkitworks.info/api/incidents', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const data = await res.json();
@@ -51,7 +51,7 @@ export default function IncidentReviewScreen() {
   const handleUpdateStatus = async (id: string, status: string) => {
     if (!globalAuthToken) return;
     try {
-      const res = await fetch(`https://api.pulkitworks.info:5000/api/incidents/${id}/status`, {
+      const res = await fetch(`https://api.pulkitworks.info/api/incidents/${id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -191,7 +191,7 @@ export default function IncidentReviewScreen() {
                 ]}>
                 <View style={styles.cardHeader}>
                   <View style={styles.cardHeaderText}>
-                    <ThemedText style={styles.incidentCode}>INC-{String(incident.id).substring(0,8).toUpperCase()}</ThemedText>
+                    <ThemedText style={styles.incidentCode}>INC-{String(incident.id).substring(0, 8).toUpperCase()}</ThemedText>
                     <ThemedText style={styles.incidentTitle}>{incident.description ? incident.description.split('.')[0] : 'No Description'}</ThemedText>
                   </View>
                   <View style={[styles.severityPill, { backgroundColor: severityBackground(incident.severity, palette) }]}>
@@ -216,7 +216,7 @@ export default function IncidentReviewScreen() {
           <View style={[styles.detailCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
             <View style={styles.detailHeader}>
               <View>
-                <ThemedText style={{ color: palette.muted, fontSize: 12, marginBottom: 4 }}>INC-{String(current.id).substring(0,8).toUpperCase()}</ThemedText>
+                <ThemedText style={{ color: palette.muted, fontSize: 12, marginBottom: 4 }}>INC-{String(current.id).substring(0, 8).toUpperCase()}</ThemedText>
                 <ThemedText type="subtitle">{current.description ? current.description.split('.')[0] : 'No Description'}</ThemedText>
               </View>
               <View style={[styles.severityPill, { backgroundColor: severityBackground(current.severity, palette) }]}>

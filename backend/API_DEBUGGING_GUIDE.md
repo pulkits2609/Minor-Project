@@ -28,7 +28,7 @@
 ### Step 1: Get a Valid JWT Token
 
 ```bash
-curl -X POST http://localhost:5000/auth/login \
+curl -X POST http://localhost/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"worker@example.com","password":"password123"}'
 ```
@@ -38,7 +38,7 @@ Response will include a `token` field.
 ### Step 2: Check Which Tasks Are Assigned to You
 
 ```bash
-curl -X GET http://localhost:5000/api/tasks \
+curl -X GET http://localhost/api/tasks \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
@@ -47,7 +47,7 @@ Copy a `task_id` from the response where `assigned_to` matches your user ID.
 ### Step 3: Update Task Status
 
 ```bash
-curl -X PATCH http://localhost:5000/api/tasks/status \
+curl -X PATCH http://localhost/api/tasks/status \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN_HERE" \
   -d '{
@@ -154,7 +154,7 @@ Content-Type: application/json
 
 ## Changes Made
 
-### Modified Files:
+### Modified Files
 
 1. **app/**init**.py**
    - Added: `from flask_cors import CORS`

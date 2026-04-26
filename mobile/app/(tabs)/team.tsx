@@ -43,7 +43,7 @@ export default function TeamScreen() {
     async function fetchTeam() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/users/workers', {
+        const res = await fetch('https://api.pulkitworks.info/api/users/workers', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const data = await res.json();

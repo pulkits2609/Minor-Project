@@ -45,11 +45,11 @@ export default function AttendanceScreen() {
     async function fetchData() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/attendance', {
+        const res = await fetch('https://api.pulkitworks.info/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const data = await res.json();
-        
+
         if (data.status === 'success') {
           // data.data should be the list of attendance records from the backend
           const rawAttendance = data.data || [];
@@ -83,20 +83,20 @@ export default function AttendanceScreen() {
     if (!globalAuthToken) return;
     try {
       // First, try to get the latest shift to check into
-      const shiftRes = await fetch('https://api.pulkitworks.info:5000/api/shifts', {
+      const shiftRes = await fetch('https://api.pulkitworks.info/api/shifts', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const shiftData = await shiftRes.json();
       const latestShift = shiftData.data?.[0];
-      
+
       if (!latestShift && type === 'checkin') {
         alert('No active shifts available to check into.');
         return;
       }
 
-      const res = await fetch(`https://api.pulkitworks.info:5000/api/attendance/${type}`, {
+      const res = await fetch(`https://api.pulkitworks.info/api/attendance/${type}`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
@@ -106,7 +106,7 @@ export default function AttendanceScreen() {
       if (res.ok) {
         alert(`Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
         // Refresh data
-        const refreshRes = await fetch('https://api.pulkitworks.info:5000/api/attendance', {
+        const refreshRes = await fetch('https://api.pulkitworks.info/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const refreshData = await refreshRes.json();
@@ -174,7 +174,7 @@ export default function AttendanceScreen() {
 
         <View style={styles.fieldGroup}>
           <ThemedText style={styles.label}>Select Date</ThemedText>
-          <Pressable 
+          <Pressable
             onPress={() => setShowPicker(true)}
             style={[styles.dateRow, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
             <MaterialIcons name="event" size={18} color={palette.tint} />
@@ -276,10 +276,10 @@ export default function AttendanceScreen() {
             {[
               { label: 'Average Check In Time', value: attendance.length > 0 ? attendance[0].checkIn : '—' },
               { label: 'Average Check Out Time', value: attendance.find(a => a.checkOut !== '—')?.checkOut || '—' },
-              { 
-                label: 'Attendance Rate', 
-                value: stats.total > 0 ? `${Math.round((stats.present / stats.total) * 100)}%` : '0%', 
-                tone: palette.success 
+              {
+                label: 'Attendance Rate',
+                value: stats.total > 0 ? `${Math.round((stats.present / stats.total) * 100)}%` : '0%',
+                tone: palette.success
               },
             ].map((item) => (
               <View key={item.label} style={[styles.summaryItem, { backgroundColor: palette.surface, borderColor: palette.border }]}>

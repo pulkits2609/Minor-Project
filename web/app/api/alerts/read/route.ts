@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.pulkitworks.info:5000";
+  process.env.NEXT_PUBLIC_API_URL || "https://api.pulkitworks.info";
 
 export async function PATCH(request: Request) {
   try {

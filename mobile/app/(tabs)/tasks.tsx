@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useState , useEffect} from 'react';
+import { useState, useEffect } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -57,7 +57,7 @@ export default function TasksScreen() {
     async function fetchTasks() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/tasks', {
+        const res = await fetch('https://api.pulkitworks.info/api/tasks', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 
@@ -91,7 +91,7 @@ export default function TasksScreen() {
   const fetchWorkers = async () => {
     if (!globalAuthToken) return;
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/users/workers', {
+      const res = await fetch('https://api.pulkitworks.info/api/users/workers', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const data = await res.json();
@@ -110,9 +110,9 @@ export default function TasksScreen() {
     }
 
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/tasks', {
+      const res = await fetch('https://api.pulkitworks.info/api/tasks', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
@@ -132,7 +132,7 @@ export default function TasksScreen() {
         setNewTaskDesc('');
         setSelectedWorkerId('');
         // Re-fetch tasks
-        const refreshRes = await fetch('https://api.pulkitworks.info:5000/api/tasks', {
+        const refreshRes = await fetch('https://api.pulkitworks.info/api/tasks', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const refreshData = await refreshRes.json();
@@ -155,19 +155,19 @@ export default function TasksScreen() {
       Alert.alert('Error', 'Connection failed');
     }
   };
-  
+
   const handleUpdateStatus = async (taskId: string | number, currentStatus: string) => {
     if (!globalAuthToken) return;
-    
+
     let nextStatus = '';
     if (currentStatus === 'assigned') nextStatus = 'in_progress';
     else if (currentStatus === 'in progress') nextStatus = 'completed';
     else return;
 
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/tasks/status', {
+      const res = await fetch('https://api.pulkitworks.info/api/tasks/status', {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
@@ -352,8 +352,8 @@ export default function TasksScreen() {
                     fontSize: 12,
                     fontWeight: '800',
                   }}>
-                  {task.status === 'assigned' ? 'Start Task' : 
-                   task.status === 'in-progress' ? 'Complete Task' : 'Completed'}
+                  {task.status === 'assigned' ? 'Start Task' :
+                    task.status === 'in-progress' ? 'Complete Task' : 'Completed'}
                 </ThemedText>
               </Pressable>
             </View>
@@ -407,7 +407,7 @@ export default function TasksScreen() {
                         onPress={() => setNewTaskPriority(p)}
                         style={[
                           styles.priorityOption,
-                          { 
+                          {
                             backgroundColor: newTaskPriority === p ? palette.tint : palette.surface,
                             borderColor: palette.border
                           }
@@ -430,7 +430,7 @@ export default function TasksScreen() {
                           onPress={() => setSelectedWorkerId(w.id)}
                           style={[
                             styles.workerOption,
-                            { 
+                            {
                               backgroundColor: selectedWorkerId === w.id ? palette.tint + '22' : palette.surface,
                               borderColor: selectedWorkerId === w.id ? palette.tint : palette.border
                             }

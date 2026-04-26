@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.pulkitworks.info:5000";
+  process.env.NEXT_PUBLIC_API_URL || "https://api.pulkitworks.info";
 
 export interface ApiErrorShape {
   message?: string;

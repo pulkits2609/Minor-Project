@@ -117,14 +117,14 @@ export default function RoleDashboardScreen() {
         setIsLoading(false);
         return;
       }
-      
+
       try {
-        const response = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
+        const response = await fetch('https://api.pulkitworks.info/api/dashboard', {
           headers: {
             'Authorization': `Bearer ${globalAuthToken}`,
           },
         });
-        
+
         if (response.status === 401) {
           const { setGlobalAuthToken, setGlobalUserRole } = require('@/constants/auth');
           const { router } = require('expo-router');
@@ -137,7 +137,7 @@ export default function RoleDashboardScreen() {
         if (response.ok) {
           const { data, role } = await response.json();
           const newMetrics = [];
-          
+
           if (role === 'worker' && data) {
             newMetrics.push({ label: 'Tasks', value: (data.tasks?.length || 0).toString(), detail: 'Assigned tasks', tone: 'neutral' as const, icon: 'assignment' });
             newMetrics.push({ label: 'Status', value: data.current_status?.shift_status === 'on_shift' ? 'Active' : 'Off', detail: `Zone: ${data.current_status?.zone || 'N/A'}`, tone: 'success' as const, icon: 'check-circle' });
@@ -156,11 +156,11 @@ export default function RoleDashboardScreen() {
             newMetrics.push({ label: 'Efficiency', value: data.analytics?.efficiency || '0%', detail: 'Overall', tone: 'success' as const, icon: 'check-circle' });
             newMetrics.push({ label: 'Risk', value: (data.analytics?.risk_levels || 'low').toUpperCase(), detail: 'Risk level', tone: 'danger' as const, icon: 'security' });
           }
-          
+
           if (newMetrics.length > 0) {
             setDynamicMetrics(newMetrics);
           }
-          
+
           // Map alerts if provided, otherwise keep default fallback
           if (data?.alerts && data.alerts.length > 0) {
             setDynamicAlerts(data.alerts.map((a: any) => ({
@@ -172,7 +172,7 @@ export default function RoleDashboardScreen() {
           } else {
             // Fallback: Fetch real alerts from dedicated endpoint if dashboard summary is empty
             try {
-              const alertRes = await fetch('https://api.pulkitworks.info:5000/api/alerts', {
+              const alertRes = await fetch('https://api.pulkitworks.info/api/alerts', {
                 headers: { 'Authorization': `Bearer ${globalAuthToken}` },
               });
               if (alertRes.ok) {
@@ -199,7 +199,7 @@ export default function RoleDashboardScreen() {
         setIsLoading(false);
       }
     }
-    
+
     fetchDashboardData();
   }, [selectedRole.key, router, roleValue]);
 

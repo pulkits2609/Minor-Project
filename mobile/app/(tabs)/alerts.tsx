@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useState , useEffect} from 'react';
+import { useState, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -47,7 +47,7 @@ export default function AlertsScreen() {
     async function fetchAlerts() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/alerts', {
+        const res = await fetch('https://api.pulkitworks.info/api/alerts', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 
