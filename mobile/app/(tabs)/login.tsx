@@ -18,7 +18,7 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
-import { normalizeRoleForApp } from '@/constants/roles';
+import { API_BASE_URL } from '@/constants/api';
 
 
 export default function LoginScreen() {
@@ -48,7 +48,7 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch('https://api.pulkitworks.info:5000/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,8 +67,12 @@ export default function LoginScreen() {
       await setGlobalAuthToken(data.access_token);
       await setGlobalUserRole(userRole);
       navigateToDashboard(userRole);
-    } catch {
-      Alert.alert('Network Error', 'Could not connect to the server.');
+    } catch (error: any) {
+      console.error('Login Network Error:', error);
+      Alert.alert(
+        'Network Error',
+        `Could not connect to the server. Details: ${error.message || 'Unknown error'}`
+      );
     } finally {
       setIsLoading(false);
     }

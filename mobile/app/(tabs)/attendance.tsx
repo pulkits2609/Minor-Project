@@ -11,6 +11,7 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { API_BASE_URL } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 
@@ -45,7 +46,7 @@ export default function AttendanceScreen() {
     async function fetchData() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/attendance', {
+        const res = await fetch(`${API_BASE_URL}/api/attendance`, {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const data = await res.json();
@@ -83,7 +84,7 @@ export default function AttendanceScreen() {
     if (!globalAuthToken) return;
     try {
       // First, try to get the latest shift to check into
-      const shiftRes = await fetch('https://api.pulkitworks.info:5000/api/shifts', {
+      const shiftRes = await fetch(`${API_BASE_URL}/api/shifts`, {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const shiftData = await shiftRes.json();
@@ -94,7 +95,7 @@ export default function AttendanceScreen() {
         return;
       }
 
-      const res = await fetch(`https://api.pulkitworks.info:5000/api/attendance/${type}`, {
+      const res = await fetch(`${API_BASE_URL}/api/attendance/${type}`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${globalAuthToken}`,
@@ -106,7 +107,7 @@ export default function AttendanceScreen() {
       if (res.ok) {
         Alert.alert('Success', `Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
         // Refresh data
-        const refreshRes = await fetch('https://api.pulkitworks.info:5000/api/attendance', {
+        const refreshRes = await fetch(`${API_BASE_URL}/api/attendance`, {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const refreshData = await refreshRes.json();

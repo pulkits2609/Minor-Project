@@ -13,6 +13,7 @@ import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 
 import { globalAuthToken } from '@/constants/auth';
+import { API_BASE_URL } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 type FilterStatus = 'all' | 'pending-verification' | 'assigned' | 'escalated' | 'resolved';
@@ -46,7 +47,7 @@ export default function IncidentsScreen() {
     async function fetchIncidents() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/incidents', {
+        const res = await fetch(`${API_BASE_URL}/api/incidents`, {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 

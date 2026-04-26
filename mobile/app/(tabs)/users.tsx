@@ -9,6 +9,7 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { API_BASE_URL } from '@/constants/api';
 
 
 import { globalAuthToken } from '@/constants/auth';
@@ -48,7 +49,7 @@ export default function UsersScreen() {
     async function fetchUsers() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/users/workers', {
+        const res = await fetch(`${API_BASE_URL}/api/users/workers`, {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 

@@ -11,6 +11,7 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { API_BASE_URL } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 
@@ -59,7 +60,7 @@ export default function ShiftsScreen() {
     if (!globalAuthToken) return;
     setLoading(true);
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/shifts', {
+      const res = await fetch(`${API_BASE_URL}/api/shifts`, {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
 
@@ -85,7 +86,7 @@ export default function ShiftsScreen() {
   const fetchWorkers = async () => {
     if (!globalAuthToken) return;
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/users/workers', {
+      const res = await fetch(`${API_BASE_URL}/api/users/workers`, {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const data = await res.json();
@@ -122,7 +123,7 @@ export default function ShiftsScreen() {
     };
 
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/shifts', {
+      const res = await fetch(`${API_BASE_URL}/api/shifts`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${globalAuthToken}`,
@@ -154,7 +155,7 @@ export default function ShiftsScreen() {
   const handleAssignWorker = async (userId: string) => {
     if (!selectedShiftId) return;
     try {
-      const res = await fetch(`https://api.pulkitworks.info:5000/api/shifts/${selectedShiftId}/assign`, {
+      const res = await fetch(`${API_BASE_URL}/api/shifts/${selectedShiftId}/assign`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${globalAuthToken}`,

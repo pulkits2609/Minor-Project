@@ -10,6 +10,7 @@ import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 import { globalAuthToken } from '@/constants/auth';
+import { API_BASE_URL } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 
@@ -71,7 +72,7 @@ export default function IncidentReportScreen() {
     }
 
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/incidents/smp/hazard', {
+      const res = await fetch(`${API_BASE_URL}/incidents/smp/hazard`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -106,9 +107,12 @@ export default function IncidentReportScreen() {
       } else {
         Alert.alert('Error', data.message || data.error || 'Failed to submit incident');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit incident', err);
-      Alert.alert('Network Error', 'Could not connect to the server.');
+      Alert.alert(
+        'Network Error',
+        `Could not connect to the server. Details: ${err.message || 'Unknown error'}`
+      );
     }
   };
 

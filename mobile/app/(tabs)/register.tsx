@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { toApiRole } from '@/constants/roles';
+import { API_BASE_URL } from '@/constants/api';
 
 const roleOptions = ['worker', 'supervisor', 'safety', 'admin', 'authority'] as const;
 
@@ -69,7 +70,7 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch('https://api.pulkitworks.info:5000/auth/register', {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -91,8 +92,12 @@ export default function RegisterScreen() {
       }
 
       setIsSubmitted(true);
-    } catch {
-      Alert.alert('Network Error', 'Could not connect to the server.');
+    } catch (error: any) {
+      console.error('Registration Network Error:', error);
+      Alert.alert(
+        'Network Error',
+        `Could not connect to the server. Details: ${error.message || 'Unknown error'}`
+      );
     } finally {
       setIsLoading(false);
     }

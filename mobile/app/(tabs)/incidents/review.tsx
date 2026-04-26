@@ -11,6 +11,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 import { globalAuthToken } from '@/constants/auth';
 import { useEffect } from 'react';
+import { API_BASE_URL } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 type ReviewStatus = 'pending-verification' | 'assigned' | 'resolved';
@@ -36,7 +37,7 @@ export default function IncidentReviewScreen() {
   const fetchIncidents = async () => {
     if (!globalAuthToken) return;
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/incidents', {
+      const res = await fetch(`${API_BASE_URL}/api/incidents`, {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const data = await res.json();
@@ -51,7 +52,7 @@ export default function IncidentReviewScreen() {
   const handleUpdateStatus = async (id: string, status: string) => {
     if (!globalAuthToken) return;
     try {
-      const res = await fetch(`https://api.pulkitworks.info:5000/api/incidents/${id}/status`, {
+      const res = await fetch(`${API_BASE_URL}/api/incidents/${id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

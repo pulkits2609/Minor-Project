@@ -11,6 +11,7 @@ import { type MineOpsRoleKey, homeMetrics as defaultMetrics, liveAlerts as defau
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { globalAuthToken, globalUserRole } from '@/constants/auth';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { API_BASE_URL } from '@/constants/api';
 
 type IconName = ComponentProps<typeof MaterialIcons>['name'];
 type Palette = typeof Colors.dark;
@@ -119,7 +120,7 @@ export default function RoleDashboardScreen() {
       }
       
       try {
-        const response = await fetch('https://api.pulkitworks.info:5000/api/dashboard', {
+        const response = await fetch(`${API_BASE_URL}/api/dashboard`, {
           headers: {
             'Authorization': `Bearer ${globalAuthToken}`,
           },
@@ -172,7 +173,7 @@ export default function RoleDashboardScreen() {
           } else {
             // Fallback: Fetch real alerts from dedicated endpoint if dashboard summary is empty
             try {
-              const alertRes = await fetch('https://api.pulkitworks.info:5000/api/alerts', {
+              const alertRes = await fetch(`${API_BASE_URL}/api/alerts`, {
                 headers: { 'Authorization': `Bearer ${globalAuthToken}` },
               });
               if (alertRes.ok) {

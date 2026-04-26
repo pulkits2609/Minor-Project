@@ -45,7 +45,7 @@ jobs:
             echo '    app.run(' >> run.py
             echo '        host="0.0.0.0",' >> run.py
             echo '        port=5000,' >> run.py
-            echo '        debug=True,' >> run.py
+            echo '        debug=False,' >> run.py
             echo '        ssl_context=(' >> run.py
             echo '            "/etc/letsencrypt/live/api.pulkitworks.info/fullchain.pem",' >> run.py
             echo '            "/etc/letsencrypt/live/api.pulkitworks.info/privkey.pem"' >> run.py
