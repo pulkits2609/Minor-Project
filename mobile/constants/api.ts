@@ -2,7 +2,7 @@ const configuredBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
 const baseCandidates = [
   configuredBaseUrl,
-  'https://api.pulkitworks.info:5000',
+  'https://api.pulkitworks.info',
 ].filter((value): value is string => Boolean(value));
 
 const API_BASE_URLS = Array.from(new Set(baseCandidates));
