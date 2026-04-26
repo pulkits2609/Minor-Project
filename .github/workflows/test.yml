@@ -29,8 +29,14 @@ jobs:
       - name: Start Backend Server
         run: |
           cd backend
-          python run.py & 
-          sleep 5 
+          # Run the server in the background and pipe output to a log file
+          python run.py > server.log 2>&1 &
+          
+          # Wait for the server to start (timeout after 15 seconds)
+          timeout 15 bash -c 'until curl -s http://127.0.0.1:5000 > /dev/null; do sleep 1; done' || true
+          
+          # Print the server logs to help debug if it crashed
+          cat server.log
 
       - name: Run Tests
         run: |
