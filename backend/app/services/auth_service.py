@@ -1,6 +1,7 @@
 from app.models.user import User
 from app.extensions import db
 from app.utils.jwt_handler import generate_token
+from sqlalchemy import or_
 import bcrypt
 
 VALID_ROLES = ['worker','supervisor','safety_officer','admin','authority']
@@ -9,6 +10,7 @@ VALID_ROLES = ['worker','supervisor','safety_officer','admin','authority']
 def register_user(data):
     name = data.get("name")
     email = data.get("email")
+    employee_id = data.get("employee_id")
     password = data.get("password")
     role = data.get("role")
 
@@ -30,6 +32,7 @@ def register_user(data):
     user = User(
         name=name,
         email=email,
+        employee_id=employee_id,
         password_hash=hashed_pw,
         role=role
     )
@@ -51,11 +54,11 @@ def login_user(data):
     if not email or not password:
         return {"error": "Email and password required"}, 400
 
-    # Find user
-    user = User.query.filter_by(email=email).first()
+    # Find user (by email or employee_id)
+    user = User.query.filter(or_(User.email == email, User.employee_id == email)).first()
 
     if not user:
-        return {"error": "User not found"}, 404
+        return {"error": "User not found or invalid identifier"}, 404
 
     # Verify password
     if not bcrypt.checkpw(password.encode(), user.password_hash.encode()):

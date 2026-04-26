@@ -31,7 +31,7 @@ def get_worker_dashboard(user_id):
 def get_supervisor_dashboard():
     total_workers = User.query.filter_by(role="worker").count()
     total_tasks = Task.query.count()
-    open_incidents_list = Incident.query.filter(Incident.status.in_(["pending-verification", "assigned"])).all()
+    open_incidents_list = Incident.query.filter(Incident.status.in_(["active", "assigned"])).all()
 
     return {
         "team_members": [],  # TODO: fetch workers

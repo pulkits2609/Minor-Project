@@ -11,7 +11,7 @@ def report_incident(reporter_id, data):
     
     query = text("""
         INSERT INTO incidents (id, reported_by, location, severity, description, status)
-        VALUES (:id, :reported_by, :location, :severity, :description, 'pending-verification')
+        VALUES (:id, :reported_by, :location, :severity, :description, 'active')
         RETURNING id
     """)
     

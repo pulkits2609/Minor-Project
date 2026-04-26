@@ -79,7 +79,7 @@ export default function IncidentReportScreen() {
         },
         body: JSON.stringify({
           location: formState.zone,
-          severity: formState.severity,
+          severity: formState.severity.toLowerCase(),
           description: formState.description.trim(),
           hazard_description: `${formState.type}: ${formState.title.trim()}. ${formState.description.trim()}`,
         }),
@@ -117,7 +117,8 @@ export default function IncidentReportScreen() {
       <ScrollView
         style={{ backgroundColor: palette.background }}
         contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.background }]}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         <View style={[styles.topRow, { borderBottomColor: palette.border }]}>
           <Link href={{ pathname: '/dashboard/[role]', params: { role: selectedRole.key } }} asChild>
             <Pressable

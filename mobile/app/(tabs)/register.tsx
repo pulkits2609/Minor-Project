@@ -77,6 +77,7 @@ export default function RegisterScreen() {
         body: JSON.stringify({
           name: formData.fullName,
           email: formData.email,
+          employee_id: formData.employeeId,
           password: formData.password,
           role: toApiRole(formData.requestedRole),
         }),

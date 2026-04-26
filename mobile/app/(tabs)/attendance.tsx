@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View, ActivityIndicator, Platform } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View, ActivityIndicator, Platform, Alert } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { globalAuthToken } from '@/constants/auth';
@@ -90,7 +90,7 @@ export default function AttendanceScreen() {
       const latestShift = shiftData.data?.[0];
       
       if (!latestShift && type === 'checkin') {
-        alert('No active shifts available to check into.');
+        Alert.alert('No active shifts available to check into.');
         return;
       }
 
@@ -104,7 +104,7 @@ export default function AttendanceScreen() {
       });
 
       if (res.ok) {
-        alert(`Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
+        Alert.alert('Success', `Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
         // Refresh data
         const refreshRes = await fetch('https://api.pulkitworks.info:5000/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
@@ -122,10 +122,10 @@ export default function AttendanceScreen() {
         }
       } else {
         const errorData = await res.json();
-        alert(errorData.error || `Failed to ${type}`);
+        Alert.alert('Error', errorData.error || `Failed to ${type}`);
       }
     } catch (err) {
-      alert('Connection error');
+      Alert.alert('Error', 'Connection error');
     }
   };
 
@@ -142,7 +142,8 @@ export default function AttendanceScreen() {
       <ScrollView
         style={{ backgroundColor: palette.background }}
         contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.background }]}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         <View style={[styles.topRow, { borderBottomColor: palette.border }]}>
           <Link href={{ pathname: '/dashboard/[role]', params: { role: selectedRole.key } }} asChild>
             <Pressable
@@ -195,7 +196,7 @@ export default function AttendanceScreen() {
 
         <View style={styles.statsGrid}>
           {[
-            { label: 'Total Staff', value: String(stats.total), tone: '#60a5fa', bg: '#60a5fa22' },
+            { label: 'Total Staff', value: String(stats.total), tone: palette.tint, bg: palette.tint + '22' },
             { label: 'Present', value: String(stats.present), tone: palette.success, bg: palette.success + '22' },
             { label: 'Late', value: String(stats.late), tone: palette.warning, bg: palette.warning + '22' },
             { label: 'Absent', value: String(stats.absent), tone: palette.danger, bg: palette.danger + '22' },
@@ -243,7 +244,7 @@ export default function AttendanceScreen() {
           {attendance.map((person) => (
             <View key={person.id} style={[styles.recordCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
               <View style={styles.recordHeading}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <ThemedText style={styles.recordName}>{person.name}</ThemedText>
                   <ThemedText style={{ color: palette.muted, fontSize: 12, marginTop: 4 }}>
                     Check in {person.checkIn} • Check out {person.checkOut}
