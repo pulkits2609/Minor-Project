@@ -1,13 +1,9 @@
-﻿"use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 import { Suspense } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Gauge, TrendingUp, AlertTriangle } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { Gauge } from "lucide-react";
 
 function MonitoringContent() {
-  const searchParams = useSearchParams();
-  const role = searchParams.get("role") || "worker";
 
   const zones = [
     { zone: "Zone A", gasLevel: 35, temp: 42, status: "normal" },

@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { AlertTriangle, TrendingUp, Gauge, Zap } from "lucide-react";
+import { AlertTriangle, TrendingUp, Gauge } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";

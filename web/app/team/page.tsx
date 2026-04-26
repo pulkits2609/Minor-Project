@@ -1,15 +1,10 @@
-﻿"use client";
+"use client";
 export const dynamic = 'force-dynamic';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, Clock, MapPin, CheckCircle2 } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { MapPin } from "lucide-react";
 import { Suspense } from "react";
-import { ReportsContent } from "../reports/page";
 
 export function TeamContent() {
-  const searchParams = useSearchParams();
-  const role = searchParams.get("role") || "worker";
 
   const teamMembers = [
     {

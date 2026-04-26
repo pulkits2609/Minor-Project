@@ -1,11 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
-  Globe,
-  TrendingUp,
-  AlertTriangle,
-  BarChart3,
   Network,
   Bell,
 } from "lucide-react";

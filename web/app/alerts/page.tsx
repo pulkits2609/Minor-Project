@@ -1,9 +1,7 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Suspense } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Bell, CheckCircle2, AlertTriangle, Info } from "lucide-react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { Bell, AlertTriangle, Info } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
@@ -22,13 +20,6 @@ interface AlertsResponse {
 }
 
 function AlertsContent() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const pathParts = pathname.split("/").filter(Boolean);
-  const roleFromPath =
-    pathParts[0] === "dashboard" && pathParts[1] ? pathParts[1] : null;
-  const role = roleFromPath || searchParams.get("role") || "worker";
-
   const [filterType, setFilterType] = useState("all");
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);

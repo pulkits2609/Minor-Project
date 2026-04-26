@@ -3,7 +3,9 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Calendar, MapPin, User, Clock, AlertCircle } from "lucide-react";
+import { Calendar, MapPin, AlertCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 
 export default function IncidentDetailPage() {
   const params = useParams();
@@ -32,6 +34,19 @@ export default function IncidentDetailPage() {
     };
     fetchIncident();
   }, [id]);
+
+  async function updateIncidentStatus(status: string) {
+    try {
+      await apiFetch(`/api/incidents/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      setIncident((prev: any) => ({ ...prev, status }));
+      alert("Status updated successfully");
+    } catch (err: any) {
+      alert(err.message || "Failed to update status");
+    }
+  }
 
   if (isLoading) {
     return (
@@ -119,26 +134,26 @@ export default function IncidentDetailPage() {
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
               <h3 className="text-xl font-bold mb-6">Incident History</h3>
               <div className="space-y-4">
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                      <div className="w-0.5 h-8 bg-neutral-700 mt-2"></div>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Reported</p>
-                      <p className="text-sm text-gray-400 mt-1">
-                        {incident.reporter} • {new Date(incident.created_at).toLocaleString()}
-                      </p>
-                    </div>
+                <div className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <div className="w-0.5 h-8 bg-neutral-700 mt-2"></div>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-3 h-3 rounded-full ${incident.status === 'resolved' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Current Status: {incident.status.toUpperCase()}</p>
-                    </div>
+                  <div>
+                    <p className="font-semibold">Reported</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {incident.reporter} • {new Date(incident.created_at).toLocaleString()}
+                    </p>
                   </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-3 h-3 rounded-full ${incident.status === 'resolved' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Current Status: {incident.status.toUpperCase()}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -169,9 +184,8 @@ export default function IncidentDetailPage() {
 
               <div>
                 <p className="text-xs text-gray-400 mb-1">Status</p>
-                <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
-                  incident.status === "resolved" ? "bg-green-900/30 text-green-400" : "bg-yellow-900/30 text-yellow-400"
-                }`}>
+                <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${incident.status === "resolved" ? "bg-green-900/30 text-green-400" : "bg-yellow-900/30 text-yellow-400"
+                  }`}>
                   {incident.status.replace("-", " ").toUpperCase()}
                 </span>
               </div>
@@ -202,13 +216,13 @@ export default function IncidentDetailPage() {
               role === "authority") && (
                 <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-3">
                   <h3 className="font-bold mb-4">Update Status</h3>
-                  <button 
+                  <button
                     onClick={() => updateIncidentStatus("resolved")}
                     className="w-full px-4 py-2 bg-green-900/30 text-green-400 border border-green-700 rounded hover:bg-green-900/50 transition font-semibold text-sm"
                   >
                     Mark Resolved
                   </button>
-                  <button 
+                  <button
                     onClick={() => updateIncidentStatus("assigned")}
                     className="w-full px-4 py-2 bg-blue-900/30 text-blue-400 border border-blue-700 rounded hover:bg-blue-900/50 transition font-semibold text-sm"
                   >
@@ -221,18 +235,4 @@ export default function IncidentDetailPage() {
       </div>
     </DashboardLayout>
   );
-
-  async function updateIncidentStatus(status: string) {
-    try {
-      await apiFetch(`/api/incidents/${id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
-      setIncident((prev: any) => ({ ...prev, status }));
-      alert("Status updated successfully");
-    } catch (err: any) {
-      alert(err.message || "Failed to update status");
-    }
-  }
-}
 }

@@ -1,6 +1,5 @@
 "use client";
 export const dynamic = 'force-dynamic';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   CheckCircle2,

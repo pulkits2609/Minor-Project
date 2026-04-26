@@ -1,15 +1,10 @@
-﻿"use client";
+"use client";
 export const dynamic = 'force-dynamic';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Shield, Lock, Eye, Edit } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { ReportsContent } from "../reports/page";
 
 export function RolesContent() {
-  const searchParams = useSearchParams();
-  const role = searchParams.get("role") || "worker";
 
   const roles = [
     {

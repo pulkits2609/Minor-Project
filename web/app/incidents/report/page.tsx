@@ -1,9 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic';
-/* eslint-disable react-hooks/purity */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { AlertCircle, Plus, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import Link from "next/link";

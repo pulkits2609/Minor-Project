@@ -1,9 +1,8 @@
-﻿"use client";
+"use client";
 export const dynamic = 'force-dynamic';
 /* eslint-disable react-hooks/purity */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { BarChart3, Download, Filter, Calendar } from "lucide-react";
+import { BarChart3, Download } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 

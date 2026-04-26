@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Suspense } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { AlertCircle, CheckCircle2, Clock, MessageSquare } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
@@ -19,19 +18,18 @@ function IncidentReviewContent() {
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
+    const fetchIncidents = async () => {
+      try {
+        const res: any = await apiFetch("/api/incidents");
+        if (res.status === "success") {
+          setIncidents(res.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch incidents", err);
+      }
+    };
     fetchIncidents();
   }, []);
-
-  const fetchIncidents = async () => {
-    try {
-      const res: any = await apiFetch("/api/incidents");
-      if (res.status === "success") {
-        setIncidents(res.data || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch incidents", err);
-    }
-  };
 
   const handleStatusUpdate = async (id: string, status: string) => {
     try {

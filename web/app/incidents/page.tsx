@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { AlertCircle, Filter, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import Link from "next/link";
@@ -16,7 +16,6 @@ export function IncidentsContent() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [incidents, setIncidents] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchIncidents = async () => {
@@ -27,8 +26,6 @@ export function IncidentsContent() {
         }
       } catch (err) {
         console.error("Failed to fetch incidents", err);
-      } finally {
-        setIsLoading(false);
       }
     };
     fetchIncidents();

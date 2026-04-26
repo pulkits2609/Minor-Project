@@ -1,11 +1,9 @@
-﻿"use client";
+"use client";
 export const dynamic = 'force-dynamic';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, Plus, Edit2, Trash2, Shield } from "lucide-react";
+import { Plus, Edit2, Trash2, Shield } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { ReportsContent } from "../reports/page";
 
 export function UsersContent() {
   const searchParams = useSearchParams();

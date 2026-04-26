@@ -1,14 +1,10 @@
-﻿"use client";
+"use client";
 export const dynamic = 'force-dynamic';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { LogsIcon, Filter, Search } from "lucide-react";
-import {useSearchParams } from "next/navigation";
+import { Search } from "lucide-react";
 import { Suspense, useState } from "react";
 
 export function LogsContent() {
-  const searchParams = useSearchParams();
-  const role = searchParams.get("role") || "worker";
 
   const [filterType, setFilterType] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");

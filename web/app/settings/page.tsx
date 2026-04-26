@@ -1,8 +1,7 @@
-﻿"use client";
+"use client";
 export const dynamic = 'force-dynamic';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Settings, Lock, Bell, User, LogOut } from "lucide-react";
+import { Lock, Bell, User } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
@@ -11,7 +10,7 @@ export function SettingsContent() {
   const role = searchParams.get("role") || "worker";
 
   const [activeTab, setActiveTab] = useState("account");
-  const [settings, setSettings] = useState({
+  const [settings] = useState({
     email: "user@coalmine.com",
     notifications: true,
     emailAlerts: true,

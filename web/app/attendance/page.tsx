@@ -1,8 +1,7 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Suspense } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Clock, CheckCircle2, LogIn, LogOut } from "lucide-react";
+import { Clock, LogIn, LogOut } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";

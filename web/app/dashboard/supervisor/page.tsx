@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { Users, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
