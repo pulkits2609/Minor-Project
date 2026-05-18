@@ -1,10 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View, ActivityIndicator, Platform } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator, Platform } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { globalAuthToken } from '@/constants/auth';
+import { apiFetchWithFallback } from '@/constants/api';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
@@ -43,23 +44,26 @@ export default function AttendanceScreen() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!globalAuthToken) return;
+      if (!globalAuthToken) {
+        setLoading(false);
+        return;
+      }
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/attendance', {
+        const res = await apiFetchWithFallback('/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const data = await res.json();
-        
+
         if (data.status === 'success') {
           // data.data should be the list of attendance records from the backend
           const rawAttendance = data.data || [];
           const mapped = rawAttendance.map((item: any) => ({
             id: item.id,
             name: item.user_name || item.name || 'Worker',
-            checkIn: item.check_in_time || item.check_in || '—',
-            checkOut: item.check_out_time || item.check_out || '—',
+            checkIn: item.check_in_time || item.check_in || '-',
+            checkOut: item.check_out_time || item.check_out || '-',
             status: (item.status?.charAt(0).toUpperCase() + item.status?.slice(1)) || 'Present',
-            duration: item.duration || '—'
+            duration: item.duration || '-'
           }));
           setAttendance(mapped);
         }
@@ -83,20 +87,20 @@ export default function AttendanceScreen() {
     if (!globalAuthToken) return;
     try {
       // First, try to get the latest shift to check into
-      const shiftRes = await fetch('https://api.pulkitworks.info:5000/api/shifts', {
+      const shiftRes = await apiFetchWithFallback('/api/shifts', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const shiftData = await shiftRes.json();
       const latestShift = shiftData.data?.[0];
-      
+
       if (!latestShift && type === 'checkin') {
         alert('No active shifts available to check into.');
         return;
       }
 
-      const res = await fetch(`https://api.pulkitworks.info:5000/api/attendance/${type}`, {
+      const res = await apiFetchWithFallback(`/api/attendance/${type}`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
@@ -106,7 +110,7 @@ export default function AttendanceScreen() {
       if (res.ok) {
         alert(`Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
         // Refresh data
-        const refreshRes = await fetch('https://api.pulkitworks.info:5000/api/attendance', {
+        const refreshRes = await apiFetchWithFallback('/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const refreshData = await refreshRes.json();
@@ -114,17 +118,17 @@ export default function AttendanceScreen() {
           setAttendance(refreshData.data.map((item: any) => ({
             id: item.id,
             name: item.user_name || item.name || 'Worker',
-            checkIn: item.check_in_time || item.check_in || '—',
-            checkOut: item.check_out_time || item.check_out || '—',
+            checkIn: item.check_in_time || item.check_in || '-',
+            checkOut: item.check_out_time || item.check_out || '-',
             status: (item.status?.charAt(0).toUpperCase() + item.status?.slice(1)) || 'Present',
-            duration: item.duration || '—'
+            duration: item.duration || '-'
           })));
         }
       } else {
         const errorData = await res.json();
         alert(errorData.error || `Failed to ${type}`);
       }
-    } catch (err) {
+    } catch {
       alert('Connection error');
     }
   };
@@ -174,7 +178,7 @@ export default function AttendanceScreen() {
 
         <View style={styles.fieldGroup}>
           <ThemedText style={styles.label}>Select Date</ThemedText>
-          <Pressable 
+          <Pressable
             onPress={() => setShowPicker(true)}
             style={[styles.dateRow, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
             <MaterialIcons name="event" size={18} color={palette.tint} />
@@ -218,7 +222,9 @@ export default function AttendanceScreen() {
                 { backgroundColor: palette.success + '22', borderColor: palette.success },
                 pressed && styles.pressed,
               ]}>
-              <MaterialIcons name="login" size={18} color={palette.success} />
+              <View style={[styles.checkIconWrap, { backgroundColor: palette.success + '26' }]}>
+                <MaterialIcons name="login" size={16} color={palette.success} />
+              </View>
               <ThemedText style={{ color: palette.success, fontSize: 13, fontWeight: '800' }}>Check In</ThemedText>
             </Pressable>
 
@@ -229,7 +235,9 @@ export default function AttendanceScreen() {
                 { backgroundColor: palette.danger + '22', borderColor: palette.danger },
                 pressed && styles.pressed,
               ]}>
-              <MaterialIcons name="logout" size={18} color={palette.danger} />
+              <View style={[styles.checkIconWrap, { backgroundColor: palette.danger + '26' }]}>
+                <MaterialIcons name="logout" size={16} color={palette.danger} />
+              </View>
               <ThemedText style={{ color: palette.danger, fontSize: 13, fontWeight: '800' }}>Check Out</ThemedText>
             </Pressable>
           </View>
@@ -242,7 +250,7 @@ export default function AttendanceScreen() {
                 <View>
                   <ThemedText style={styles.recordName}>{person.name}</ThemedText>
                   <ThemedText style={{ color: palette.muted, fontSize: 12, marginTop: 4 }}>
-                    Check in {person.checkIn} • Check out {person.checkOut}
+                    Check in {person.checkIn} - Check out {person.checkOut}
                   </ThemedText>
                 </View>
                 <View style={[styles.statusPill, { backgroundColor: statusBackground(person.status, palette) }]}>
@@ -270,12 +278,12 @@ export default function AttendanceScreen() {
           <ThemedText type="subtitle">Daily Summary</ThemedText>
           <View style={styles.summaryGrid}>
             {[
-              { label: 'Average Check In Time', value: attendance.length > 0 ? attendance[0].checkIn : '—' },
-              { label: 'Average Check Out Time', value: attendance.find(a => a.checkOut !== '—')?.checkOut || '—' },
-              { 
-                label: 'Attendance Rate', 
-                value: stats.total > 0 ? `${Math.round((stats.present / stats.total) * 100)}%` : '0%', 
-                tone: palette.success 
+              { label: 'Average Check In Time', value: attendance.length > 0 ? attendance[0].checkIn : '-' },
+              { label: 'Average Check Out Time', value: attendance.find(a => a.checkOut !== '-')?.checkOut || '-' },
+              {
+                label: 'Attendance Rate',
+                value: stats.total > 0 ? `${Math.round((stats.present / stats.total) * 100)}%` : '0%',
+                tone: palette.success
               },
             ].map((item) => (
               <View key={item.label} style={[styles.summaryItem, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -375,13 +383,21 @@ const styles = StyleSheet.create({
   },
   checkButton: {
     flex: 1,
-    minHeight: 50,
+    minHeight: 54,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     flexDirection: 'row',
+    paddingHorizontal: 12,
+  },
+  checkIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   recordList: {
     gap: 12,

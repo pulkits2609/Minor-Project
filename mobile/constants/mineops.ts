@@ -1,11 +1,15 @@
+import type { ComponentProps } from 'react';
+import type MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
 export type MineOpsRoleKey = 'worker' | 'supervisor' | 'safety' | 'admin' | 'authority';
 
 export type MineOpsTone = 'danger' | 'warning' | 'success' | 'neutral';
+export type MineOpsIconName = ComponentProps<typeof MaterialIcons>['name'];
 
 export type MineOpsRoleProfile = {
   key: MineOpsRoleKey;
   label: string;
-  icon: string;
+  icon: MineOpsIconName;
   summary: string;
   highlight: string;
   actions: string[];
@@ -16,28 +20,28 @@ export type MineOpsMetric = {
   value: string;
   detail: string;
   tone: MineOpsTone;
-  icon: string;
+  icon: MineOpsIconName;
 };
 
 export type MineOpsAlert = {
   title: string;
   detail: string;
   tone: MineOpsTone;
-  icon: string;
+  icon: MineOpsIconName;
 };
 
 export type MineOpsAction = {
   key: string;
   title: string;
   detail: string;
-  icon: string;
+  icon: MineOpsIconName;
 };
 
 export type MineOpsModule = {
   key: string;
   title: string;
   detail: string;
-  icon: string;
+  icon: MineOpsIconName;
   actions: string[];
 };
 

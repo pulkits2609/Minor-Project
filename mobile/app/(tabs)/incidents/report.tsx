@@ -9,28 +9,18 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
-import { globalAuthToken } from '@/constants/auth';
+import { globalAuthToken, loadAuthState } from '@/constants/auth';
+import { apiFetchWithFallback } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 
 type IncidentFormState = {
-  type: string;
-  title: string;
   description: string;
-  zone: string;
+  location: string;
   severity: string;
 };
 
-const INCIDENT_TYPES = [
-  'Safety Hazard',
-  'Equipment Malfunction',
-  'Near Miss',
-  'Injury',
-  'Environmental Issue',
-  'Other',
-];
-
-const ZONES = ['Zone A', 'Zone B', 'Zone C', 'Zone D'];
+const LOCATIONS = ['Zone A', 'Zone B', 'Zone C', 'Zone D'];
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
 export default function IncidentReportScreen() {
@@ -45,11 +35,10 @@ export default function IncidentReportScreen() {
 
   const [submitted, setSubmitted] = useState(false);
   const [reference, setReference] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formState, setFormState] = useState<IncidentFormState>({
-    type: 'Safety Hazard',
-    title: '',
     description: '',
-    zone: 'Zone A',
+    location: 'Zone A',
     severity: 'Medium',
   });
 
@@ -61,42 +50,79 @@ export default function IncidentReportScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!globalAuthToken) return;
-    try {
-      const res = await fetch('https://api.pulkitworks.info:5000/incidents/smp/hazard', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${globalAuthToken}`,
-        },
-        body: JSON.stringify({
-          location: formState.zone,
-          hazard_description: `${formState.type}: ${formState.title}. ${formState.description}`,
-          probability: formState.severity === 'Critical' ? 4 : formState.severity === 'Warning' ? 2 : 1,
-          consequence: formState.severity === 'Critical' ? 4 : 2,
-          control_mechanism: 'Standard SMP Protocols'
-        }),
-      });
+    if (isSubmitting) return;
 
-      // Handle non-JSON responses (e.g. 404 HTML pages) gracefully
+    let authToken = globalAuthToken;
+    if (!authToken) {
+      const { token } = await loadAuthState();
+      authToken = token;
+    }
+
+    if (!authToken) {
+      Alert.alert('Session Expired', 'Please login again to submit an incident.');
+      return;
+    }
+    if (!formState.description.trim()) {
+      Alert.alert('Missing Fields', 'Incident description is required.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const incidentDescription = formState.description.trim();
+      const payload = {
+        location: formState.location,
+        severity: formState.severity,
+        description: incidentDescription,
+        hazard_description: incidentDescription,
+      };
+
+      const res = await apiFetchWithFallback(
+        '/api/incidents',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
       const contentType = res.headers.get('content-type');
-      if (!res.ok || !contentType || !contentType.includes('application/json')) {
+      if (!contentType || !contentType.includes('application/json')) {
         const text = await res.text();
-        console.error('Incident API error:', text);
-        Alert.alert('Error', 'Server returned an invalid response.');
+        console.warn('Incident API invalid response:', {
+          status: res.status,
+          contentType,
+          preview: text.slice(0, 300),
+        });
+        const message =
+          res.status >= 500
+            ? 'Backend crashed while saving the incident. This is a server/database error, not a mobile form error.'
+            : 'Incident API returned a non-JSON response. Check that the backend API server is running.';
+        Alert.alert('Error', message);
         return;
       }
 
       const data = await res.json();
-      if (data.status === 'success') {
-        setReference(data.reference);
+      
+      if (!res.ok) {
+        Alert.alert('Error', data.error || data.message || 'Failed to submit incident');
+        return;
+      }
+
+      if (data.status === 'success' || data.reference || data.id) {
+        setReference(data.reference || `INC-${String(data.id).slice(0, 8).toUpperCase()}`);
         setSubmitted(true);
       } else {
-        Alert.alert('Error', data.message || 'Failed to submit incident');
+        Alert.alert('Error', data.message || data.error || 'Failed to submit incident');
       }
     } catch (err) {
-      console.error('Failed to submit incident', err);
+      console.warn('Failed to submit incident', err);
       Alert.alert('Network Error', 'Could not connect to the server.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -153,56 +179,9 @@ export default function IncidentReportScreen() {
             <View style={styles.headerBlock}>
               <ThemedText type="title">Report Incident</ThemedText>
               <ThemedText style={{ color: palette.muted, fontSize: 15, lineHeight: 22, marginTop: 10 }}>
-                Report a safety concern or hazard immediately
+                Send location, severity, and description to the incident API
               </ThemedText>
             </View>
-
-            <FieldGroup label="Incident Type *" palette={palette}>
-              <View style={styles.chipGrid}>
-                {INCIDENT_TYPES.map((option) => {
-                  const selected = formState.type === option;
-                  return (
-                    <Pressable
-                      key={option}
-                      onPress={() => updateField('type', option)}
-                      style={({ pressed }) => [
-                        styles.chip,
-                        {
-                          backgroundColor: selected ? accent : palette.surface,
-                          borderColor: selected ? accent : palette.border,
-                        },
-                        pressed && styles.pressed,
-                      ]}>
-                      <ThemedText
-                        style={{
-                          color: selected ? '#111111' : palette.text,
-                          fontSize: 13,
-                          fontWeight: '800',
-                        }}>
-                        {option}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </FieldGroup>
-
-            <FieldGroup label="Incident Title *" palette={palette}>
-              <TextInput
-                value={formState.title}
-                onChangeText={(value) => updateField('title', value)}
-                placeholder="Brief description of the incident"
-                placeholderTextColor={palette.muted}
-                style={[
-                  styles.textInput,
-                  {
-                    backgroundColor: palette.surface,
-                    borderColor: palette.border,
-                    color: palette.text,
-                  },
-                ]}
-              />
-            </FieldGroup>
 
             <FieldGroup label="Detailed Description *" palette={palette}>
               <TextInput
@@ -225,14 +204,14 @@ export default function IncidentReportScreen() {
             </FieldGroup>
 
             <View style={styles.twoColumnRow}>
-              <FieldGroup label="Zone *" palette={palette} style={styles.halfColumn}>
+              <FieldGroup label="Location *" palette={palette} style={styles.halfColumn}>
                 <View style={styles.chipGrid}>
-                  {ZONES.map((option) => {
-                    const selected = formState.zone === option;
+                  {LOCATIONS.map((option) => {
+                    const selected = formState.location === option;
                     return (
                       <Pressable
                         key={option}
-                        onPress={() => updateField('zone', option)}
+                        onPress={() => updateField('location', option)}
                         style={({ pressed }) => [
                           styles.chip,
                           styles.smallChip,
@@ -293,11 +272,11 @@ export default function IncidentReportScreen() {
                 onPress={handleSubmit}
                 style={({ pressed }) => [
                   styles.primaryButton,
-                  { backgroundColor: accent },
+                  { backgroundColor: isSubmitting ? palette.muted : accent },
                   pressed && styles.pressed,
                 ]}>
                 <ThemedText lightColor="#111111" darkColor="#111111" style={styles.primaryButtonText}>
-                  Submit Incident Report
+                  {isSubmitting ? 'Submitting...' : 'Submit Incident Report'}
                 </ThemedText>
               </Pressable>
 

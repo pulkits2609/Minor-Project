@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy.yml"
 
 jobs:
   deploy:
@@ -24,38 +27,35 @@ jobs:
         run: |
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
 
-            echo "Starting Deployment..."
+            echo "🚀 Starting Deployment..."
 
             cd ~/Minor-Project
-            git pull origin main
+
+            echo "📥 Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
 
             cd backend
 
-            echo "Creating .env.local..."
-            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env.local
-            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env.local
-            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env.local
+            echo "⚙️ Updating environment variables..."
+            cat > .env << EOL
+                DATABASE_URL=${{ secrets.DATABASE_URL }}
+                SECRET_KEY=${{ secrets.SECRET_KEY }}
+                JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            EOL
 
-            echo "Overwriting run.py..."
-            echo 'from app import create_app' > run.py
-            echo '' >> run.py
-            echo 'app = create_app()' >> run.py
-            echo '' >> run.py
-            echo "if __name__ == '__main__':" >> run.py
-            echo '    app.run(' >> run.py
-            echo '        host="0.0.0.0",' >> run.py
-            echo '        port=5000,' >> run.py
-            echo '        debug=True,' >> run.py
-            echo '        ssl_context=(' >> run.py
-            echo '            "/etc/letsencrypt/live/api.pulkitworks.info/fullchain.pem",' >> run.py
-            echo '            "/etc/letsencrypt/live/api.pulkitworks.info/privkey.pem"' >> run.py
-            echo '        )' >> run.py
-            echo '    )' >> run.py
+            echo "🐍 Activating virtual environment..."
+            source venv/bin/activate
 
-            pip3 install -r requirements.txt
+            echo "📦 Installing dependencies..."
+            pip install -r requirements.txt
 
-            pm2 restart backend || pm2 start run.py --name backend --interpreter python3
+            echo "🔄 Restarting backend..."
+            pm2 restart backend || pm2 start "/home/ubuntu/Minor-Project/backend/venv/bin/gunicorn -w 4 -b 0.0.0.0:5000 run:app" --name backend
 
-            echo "Deployment Completed!"
+            echo "💾 Saving PM2 state..."
+            pm2 save
+
+            echo "✅ Deployment Completed!"
 
           EOF

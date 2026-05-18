@@ -1,11 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
+import { apiFetchWithFallback } from '@/constants/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
@@ -19,7 +20,9 @@ type AttendanceStatus = 'Present' | 'Late' | 'Absent';
 type TeamMember = {
   id: string | number;
   name: string;
+  role: string;
   status: MemberStatus;
+  avatar?: string;
   shift: string;
   zone: string;
   tasks: number;
@@ -34,6 +37,7 @@ export default function TeamScreen() {
   const params = useLocalSearchParams<{ role?: string }>();
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
+  const router = useRouter();
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,9 +45,12 @@ export default function TeamScreen() {
 
   useEffect(() => {
     async function fetchTeam() {
-      if (!globalAuthToken) return;
+      if (!globalAuthToken) {
+        setIsLoading(false);
+        return;
+      }
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/users/workers', {
+        const res = await apiFetchWithFallback('/api/users/workers', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const data = await res.json();
@@ -75,6 +82,14 @@ export default function TeamScreen() {
     active: teamMembers.filter((member) => member.status === 'Active').length,
     break: teamMembers.filter((member) => member.status === 'Break').length,
   };
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: palette.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={palette.tint} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
@@ -151,17 +166,16 @@ export default function TeamScreen() {
 
               <Pressable
                 onPress={() => {
-                  const { router } = require('expo-router');
                   router.push({
                     pathname: '/team/[id]',
                     params: {
-                      id: member.id,
+                      id: String(member.id),
                       name: member.name,
                       role: member.role,
                       status: member.status,
                       shift: member.shift,
                       zone: member.zone,
-                      tasks: member.tasks,
+                      tasks: String(member.tasks),
                       attendance: member.attendance,
                       avatar: member.avatar || ''
                     }

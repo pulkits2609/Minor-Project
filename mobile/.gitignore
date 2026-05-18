@@ -8,7 +8,7 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
-
+.pytest_cache/
 # Native
 .kotlin/
 *.orig.*
@@ -20,7 +20,8 @@ expo-env.d.ts
 
 # Metro
 .metro-health-check*
-
+*.db
+*.env
 # debug
 npm-debug.*
 yarn-debug.*

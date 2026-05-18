@@ -17,6 +17,8 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup Node
       uses: actions/setup-node@v4
@@ -39,6 +41,14 @@ jobs:
 
     - name: Generate version
       run: echo "VERSION=$(git rev-list --count HEAD)" >> $GITHUB_ENV
+
+    - name: Update app metadata
+      run: |
+        cd mobile
+        # Use jq to update version and android.versionCode
+        jq ".expo.version = \"1.0.${{ env.VERSION }}\" | .expo.android.versionCode = ${{ env.VERSION }}" app.json > tmp.json && mv tmp.json app.json
+        jq ".version = \"1.0.${{ env.VERSION }}\"" package.json > tmp.json && mv tmp.json package.json
+        echo "Updated app.json and package.json to version 1.0.${{ env.VERSION }}"
 
     - name: Build APK (Local)
       run: |

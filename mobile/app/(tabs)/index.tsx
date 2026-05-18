@@ -31,7 +31,7 @@ export default function LandingScreen() {
       }
     }
     checkAuth();
-  }, [router]);
+  }, [noredirect, router]);
 
   if (!isReady) return null;
 

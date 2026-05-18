@@ -9,10 +9,9 @@ import { globalAuthToken } from '@/constants/auth';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
+import { apiFetchWithFallback } from '@/constants/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
-
-type Palette = typeof Colors.dark;
 
 type ShiftRecord = {
   id: string;
@@ -41,7 +40,7 @@ export default function ShiftsScreen() {
 
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Create Shift State
   const [isCreating, setIsCreating] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
@@ -56,10 +55,13 @@ export default function ShiftsScreen() {
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
 
   const fetchShifts = async () => {
-    if (!globalAuthToken) return;
+    if (!globalAuthToken) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/shifts', {
+      const res = await apiFetchWithFallback('/api/shifts', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
 
@@ -67,7 +69,7 @@ export default function ShiftsScreen() {
       if (!res.ok || !contentType || !contentType.includes('application/json')) {
         const text = await res.text();
         console.error('Shifts API error:', text);
-        setIsLoading(false);
+        setLoading(false);
         return;
       }
 
@@ -85,7 +87,7 @@ export default function ShiftsScreen() {
   const fetchWorkers = async () => {
     if (!globalAuthToken) return;
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/users/workers', {
+      const res = await apiFetchWithFallback('/api/users/workers', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const data = await res.json();
@@ -102,7 +104,7 @@ export default function ShiftsScreen() {
     if (isSupervisor) {
       fetchWorkers();
     }
-  }, []);
+  }, [isSupervisor]);
 
   const handleCreateShift = async () => {
     if (!newLocation) {
@@ -122,9 +124,9 @@ export default function ShiftsScreen() {
     };
 
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/shifts', {
+      const res = await apiFetchWithFallback('/api/shifts', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
@@ -134,7 +136,7 @@ export default function ShiftsScreen() {
           location: newLocation
         })
       });
-      
+
       const data = await res.json();
       if (data.status === 'success') {
         Alert.alert('Success', 'Shift created successfully!');
@@ -146,7 +148,7 @@ export default function ShiftsScreen() {
       } else {
         Alert.alert('Error', data.error || data.message || 'Failed to create shift');
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Network request failed');
     }
   };
@@ -154,15 +156,15 @@ export default function ShiftsScreen() {
   const handleAssignWorker = async (userId: string) => {
     if (!selectedShiftId) return;
     try {
-      const res = await fetch(`https://api.pulkitworks.info:5000/api/shifts/${selectedShiftId}/assign`, {
+      const res = await apiFetchWithFallback(`/api/shifts/${selectedShiftId}/assign`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ user_ids: [userId] })
       });
-      
+
       const data = await res.json();
       if (data.status === 'success') {
         Alert.alert('Success', 'Worker assigned to shift!');
@@ -170,7 +172,7 @@ export default function ShiftsScreen() {
       } else {
         Alert.alert('Error', data.error || 'Failed to assign worker');
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Network request failed');
     }
   };
@@ -189,7 +191,7 @@ export default function ShiftsScreen() {
         style={{ backgroundColor: palette.background }}
         contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.background }]}
         showsVerticalScrollIndicator={false}>
-        
+
         {/* Top Header */}
         <View style={[styles.topRow, { borderBottomColor: palette.border }]}>
           <Link href={{ pathname: '/dashboard/[role]', params: { role: selectedRole.key } }} asChild>
@@ -227,10 +229,10 @@ export default function ShiftsScreen() {
         {isCreating && (
           <View style={[styles.formCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
             <ThemedText type="subtitle" style={{ marginBottom: 16 }}>New Shift Details</ThemedText>
-            
+
             <View style={styles.inputGroup}>
               <ThemedText style={{ color: palette.muted, fontSize: 12, marginBottom: 6 }}>Start Time</ThemedText>
-              <Pressable 
+              <Pressable
                 onPress={() => setShowStartPicker(true)}
                 style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, justifyContent: 'center' }]}>
                 <ThemedText>{startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</ThemedText>
@@ -251,7 +253,7 @@ export default function ShiftsScreen() {
 
             <View style={styles.inputGroup}>
               <ThemedText style={{ color: palette.muted, fontSize: 12, marginBottom: 6 }}>End Time</ThemedText>
-              <Pressable 
+              <Pressable
                 onPress={() => setShowEndPicker(true)}
                 style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, justifyContent: 'center' }]}>
                 <ThemedText>{endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</ThemedText>
@@ -327,9 +329,9 @@ export default function ShiftsScreen() {
               {isSupervisor && (
                 <View style={[styles.shiftFooter, { borderTopColor: palette.border }]}>
                   <ThemedText style={{ color: palette.muted, fontSize: 12, flex: 1 }}>
-                    ID: {shift.id.substring(0,8)}...
+                    ID: {shift.id.substring(0, 8)}...
                   </ThemedText>
-                  <Pressable 
+                  <Pressable
                     onPress={() => {
                       setSelectedShiftId(shift.id);
                       setAssignModalVisible(true);

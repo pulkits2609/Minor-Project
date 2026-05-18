@@ -17,15 +17,17 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
-  const [expoPushToken, setExpoPushToken] = useState('');
 
   useEffect(() => {
     async function init() {
       await loadAuthState();
-      if (Constants.executionEnvironment !== 'storeClient') {
+      const isExpoGo =
+        Constants.executionEnvironment === 'storeClient' ||
+        Constants.appOwnership === 'expo';
+
+      if (!isExpoGo) {
         const token = await registerForPushNotificationsAsync();
         if (token) {
-          setExpoPushToken(token);
           // Backend is currently locked, but this is where we would normally call:
           // fetch('/auth/profile/token', { method: 'PUT', body: JSON.stringify({ token }) })
           console.log("Push Token Registered:", token);
@@ -38,8 +40,8 @@ export default function RootLayout() {
 
   async function registerForPushNotificationsAsync() {
     try {
-      const Notifications = require('expo-notifications');
-      
+      const Notifications = await import('expo-notifications');
+
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
           name: 'default',

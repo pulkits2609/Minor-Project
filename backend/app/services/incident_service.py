@@ -1,9 +1,16 @@
 from app.extensions import db
 from sqlalchemy import text
-import uuid
+
+OPEN_INCIDENT_STATUS = "active"
+
+
+def _normalize_incident_row(row):
+    item = dict(row._mapping)
+    if item.get("status") == OPEN_INCIDENT_STATUS:
+        item["status"] = "pending-verification"
+    return item
 
 def report_incident(reporter_id, data):
-    incident_id = str(uuid.uuid4())
     location = data.get("location")
     severity = data.get("severity", "Medium")
     # Handle mobile's specific fields if sent to /incidents/smp/hazard
@@ -11,19 +18,19 @@ def report_incident(reporter_id, data):
     
     query = text("""
         INSERT INTO incidents (id, reported_by, location, severity, description, status)
-        VALUES (:id, :reported_by, :location, :severity, :description, 'pending-verification')
+        VALUES (gen_random_uuid(), CAST(:reported_by AS uuid), :location, :severity, :description, :status)
         RETURNING id
     """)
     
-    db.session.execute(query, {
-        "id": incident_id,
+    result = db.session.execute(query, {
         "reported_by": reporter_id,
         "location": location,
         "severity": severity,
-        "description": description
-    })
+        "description": description,
+        "status": OPEN_INCIDENT_STATUS,
+    }).fetchone()
     db.session.commit()
-    return incident_id
+    return str(result[0])
 
 def get_all_incidents():
     query = text("""
@@ -33,7 +40,7 @@ def get_all_incidents():
         ORDER BY i.created_at DESC
     """)
     result = db.session.execute(query).fetchall()
-    return [dict(row._mapping) for row in result]
+    return [_normalize_incident_row(row) for row in result]
 
 def get_incidents_by_user(user_id):
     query = text("""
@@ -43,7 +50,7 @@ def get_incidents_by_user(user_id):
         ORDER BY created_at DESC
     """)
     result = db.session.execute(query, {"user_id": user_id}).fetchall()
-    return [dict(row._mapping) for row in result]
+    return [_normalize_incident_row(row) for row in result]
 
 def update_incident_status(incident_id, status):
     query = text("""

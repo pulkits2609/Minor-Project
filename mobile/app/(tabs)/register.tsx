@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useRouter } from 'expo-router';
+import { apiFetchWithFallback } from '@/constants/api';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -16,8 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { toApiRole } from '@/constants/roles';
 
-const roleOptions = ['worker', 'supervisor', 'safety'] as const;
+const roleOptions = ['worker', 'supervisor', 'safety', 'admin', 'authority'] as const;
 
 type RequestedRole = (typeof roleOptions)[number];
 
@@ -68,7 +70,7 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch('https://api.pulkitworks.info:5000/auth/register', {
+      const response = await apiFetchWithFallback('/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +79,7 @@ export default function RegisterScreen() {
           name: formData.fullName,
           email: formData.email,
           password: formData.password,
-          role: formData.requestedRole,
+          role: toApiRole(formData.requestedRole),
         }),
       });
 

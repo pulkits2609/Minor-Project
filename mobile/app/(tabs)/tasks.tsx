@@ -1,12 +1,13 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useState , useEffect} from 'react';
+import { useState, useEffect } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
+import { apiFetchWithFallback } from '@/constants/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
@@ -14,7 +15,8 @@ import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 import { globalAuthToken } from '@/constants/auth';
 
 type Palette = typeof Colors.dark;
-type TaskStatus = 'pending' | 'in-progress' | 'completed';
+type TaskStatus = 'assigned' | 'in-progress' | 'completed';
+type ApiTaskStatus = 'assigned' | 'in_progress' | 'completed';
 type TaskPriority = 'high' | 'medium' | 'low';
 
 type TaskItem = {
@@ -28,7 +30,58 @@ type TaskItem = {
   status: TaskStatus;
 };
 
-const FILTERS: ('all' | TaskStatus)[] = ['all', 'pending', 'in-progress', 'completed'];
+const FILTERS: ('all' | TaskStatus)[] = ['all', 'assigned', 'in-progress', 'completed'];
+
+function normalizeTaskStatus(status: unknown): TaskStatus {
+  const normalized = String(status ?? 'assigned')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+
+  if (normalized === 'in_progress') {
+    return 'in-progress';
+  }
+
+  if (normalized === 'completed') {
+    return 'completed';
+  }
+
+  return 'assigned';
+}
+
+function normalizeTaskPriority(priority: unknown): TaskPriority {
+  const normalized = String(priority ?? 'medium').trim().toLowerCase();
+  if (normalized === 'high' || normalized === 'medium' || normalized === 'low') {
+    return normalized;
+  }
+
+  return 'medium';
+}
+
+function mapTask(t: any): TaskItem {
+  return {
+    id: t.id,
+    title: t.task_name || t.title || 'Untitled Task',
+    description: t.description || '',
+    assignedTo: t.assigned_to || 'Unassigned',
+    zone: t.location || 'Site Wide',
+    dueDate: t.due_date || 'N/A',
+    priority: normalizeTaskPriority(t.priority),
+    status: normalizeTaskStatus(t.status),
+  };
+}
+
+function nextStatusFor(currentStatus: TaskStatus): { api: ApiTaskStatus; mobile: TaskStatus; label: string } | null {
+  if (currentStatus === 'assigned') {
+    return { api: 'in_progress', mobile: 'in-progress', label: 'in progress' };
+  }
+
+  if (currentStatus === 'in-progress') {
+    return { api: 'completed', mobile: 'completed', label: 'completed' };
+  }
+
+  return null;
+}
 
 export default function TasksScreen() {
   useProtectedRoute(['worker', 'supervisor', 'admin', 'authority']);
@@ -55,9 +108,12 @@ export default function TasksScreen() {
 
   useEffect(() => {
     async function fetchTasks() {
-      if (!globalAuthToken) return;
+      if (!globalAuthToken) {
+        setIsLoading(false);
+        return;
+      }
       try {
-        const res = await fetch('https://api.pulkitworks.info:5000/api/tasks', {
+        const res = await apiFetchWithFallback('/api/tasks', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 
@@ -66,16 +122,7 @@ export default function TasksScreen() {
           const data = await res.json();
           if (data.status === 'success') {
             const rawTasks = data.data || [];
-            const mappedTasks = rawTasks.map((t: any) => ({
-              id: t.id,
-              title: t.task_name || t.title || 'Untitled Task',
-              description: t.description || '',
-              assignedTo: t.assigned_to || 'Unassigned',
-              zone: t.location || 'Site Wide',
-              dueDate: t.due_date || 'N/A',
-              priority: (t.priority || 'medium').toLowerCase(),
-              status: (t.status || 'assigned').replace('_', ' '),
-            }));
+            const mappedTasks = rawTasks.map(mapTask);
             setTasks(mappedTasks);
           }
         }
@@ -91,7 +138,7 @@ export default function TasksScreen() {
   const fetchWorkers = async () => {
     if (!globalAuthToken) return;
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/users/workers', {
+      const res = await apiFetchWithFallback('/api/users/workers', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const data = await res.json();
@@ -110,9 +157,9 @@ export default function TasksScreen() {
     }
 
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/tasks', {
+      const res = await apiFetchWithFallback('/api/tasks', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
@@ -132,60 +179,49 @@ export default function TasksScreen() {
         setNewTaskDesc('');
         setSelectedWorkerId('');
         // Re-fetch tasks
-        const refreshRes = await fetch('https://api.pulkitworks.info:5000/api/tasks', {
+        const refreshRes = await apiFetchWithFallback('/api/tasks', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const refreshData = await refreshRes.json();
         if (refreshData.status === 'success') {
-          setTasks(refreshData.data.map((t: any) => ({
-            id: t.id,
-            title: t.task_name || t.title || 'Untitled Task',
-            description: t.description || '',
-            assignedTo: t.assigned_to || 'Unassigned',
-            zone: t.location || 'Site Wide',
-            dueDate: t.due_date || 'N/A',
-            priority: (t.priority || 'medium').toLowerCase(),
-            status: (t.status || 'assigned').replace('_', ' '),
-          })));
+          setTasks((refreshData.data || []).map(mapTask));
         }
       } else {
         Alert.alert('Error', data.error || 'Failed to create task');
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Connection failed');
     }
   };
-  
-  const handleUpdateStatus = async (taskId: string | number, currentStatus: string) => {
+
+  const handleUpdateStatus = async (taskId: string | number, currentStatus: TaskStatus) => {
     if (!globalAuthToken) return;
-    
-    let nextStatus = '';
-    if (currentStatus === 'assigned') nextStatus = 'in_progress';
-    else if (currentStatus === 'in progress') nextStatus = 'completed';
-    else return;
+
+    const nextStatus = nextStatusFor(currentStatus);
+    if (!nextStatus) return;
 
     try {
-      const res = await fetch('https://api.pulkitworks.info:5000/api/tasks/status', {
+      const res = await apiFetchWithFallback('/api/tasks/status', {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           task_id: taskId,
-          status: nextStatus
+          status: nextStatus.api
         })
       });
 
       const data = await res.json();
       if (res.ok) {
         // Optimistically update the UI or re-fetch
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: nextStatus.replace('_', ' ') as any } : t));
-        Alert.alert('Success', `Task marked as ${nextStatus.replace('_', ' ')}`);
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: nextStatus.mobile } : t));
+        Alert.alert('Success', `Task marked as ${nextStatus.label}`);
       } else {
         Alert.alert('Error', data.error || 'Failed to update task');
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Connection failed');
     }
   };
@@ -243,7 +279,7 @@ export default function TasksScreen() {
           {[
             { label: 'Total Tasks', value: String(tasks.length), tone: '#60a5fa', bg: '#60a5fa22' },
             { label: 'In Progress', value: String(tasks.filter((task) => task.status === 'in-progress').length), tone: palette.warning, bg: palette.warning + '22' },
-            { label: 'Pending', value: String(tasks.filter((task) => task.status === 'pending').length), tone: '#eab308', bg: '#eab30822' },
+            { label: 'Assigned', value: String(tasks.filter((task) => task.status === 'assigned').length), tone: '#eab308', bg: '#eab30822' },
             { label: 'Completed', value: String(tasks.filter((task) => task.status === 'completed').length), tone: palette.success, bg: palette.success + '22' },
           ].map((item) => (
             <View key={item.label} style={[styles.statCard, { backgroundColor: item.bg, borderColor: palette.border }]}>
@@ -352,8 +388,8 @@ export default function TasksScreen() {
                     fontSize: 12,
                     fontWeight: '800',
                   }}>
-                  {task.status === 'assigned' ? 'Start Task' : 
-                   task.status === 'in-progress' ? 'Complete Task' : 'Completed'}
+                  {task.status === 'assigned' ? 'Start Task' :
+                    task.status === 'in-progress' ? 'Complete Task' : 'Completed'}
                 </ThemedText>
               </Pressable>
             </View>
@@ -407,7 +443,7 @@ export default function TasksScreen() {
                         onPress={() => setNewTaskPriority(p)}
                         style={[
                           styles.priorityOption,
-                          { 
+                          {
                             backgroundColor: newTaskPriority === p ? palette.tint : palette.surface,
                             borderColor: palette.border
                           }
@@ -430,7 +466,7 @@ export default function TasksScreen() {
                           onPress={() => setSelectedWorkerId(w.id)}
                           style={[
                             styles.workerOption,
-                            { 
+                            {
                               backgroundColor: selectedWorkerId === w.id ? palette.tint + '22' : palette.surface,
                               borderColor: selectedWorkerId === w.id ? palette.tint : palette.border
                             }
@@ -646,6 +682,13 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     marginTop: 10,
+  },
+  primaryButton: {
+    minHeight: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   inputGroup: {
     gap: 8,
