@@ -1,15 +1,25 @@
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
+const normalizeBaseUrl = (baseUrl: string) => baseUrl.replace(/\/+$/, '');
+
 const baseCandidates = [
   configuredBaseUrl,
   'https://api.pulkitworks.info',
-].filter((value): value is string => Boolean(value));
+].filter((value): value is string => Boolean(value)).map(normalizeBaseUrl);
 
 const API_BASE_URLS = Array.from(new Set(baseCandidates));
 
 const normalizePath = (path: string) => (path.startsWith('/') ? path : `/${path}`);
 
-const toAbsoluteUrl = (baseUrl: string, path: string) => `${baseUrl}${normalizePath(path)}`;
+const toAbsoluteUrl = (baseUrl: string, path: string) => {
+  const normalizedPath = normalizePath(path);
+
+  if (baseUrl.endsWith('/api') && normalizedPath.startsWith('/api/')) {
+    return `${baseUrl}${normalizedPath.slice('/api'.length)}`;
+  }
+
+  return `${baseUrl}${normalizedPath}`;
+};
 
 export async function apiFetchWithFallback(
   path: string,
@@ -18,6 +28,7 @@ export async function apiFetchWithFallback(
 ): Promise<Response> {
   const allPaths = [path, ...fallbackPaths];
   const networkErrors: unknown[] = [];
+  let lastHtmlResponse: Response | null = null;
 
   for (const currentPath of allPaths) {
     for (const baseUrl of API_BASE_URLS) {
@@ -31,11 +42,21 @@ export async function apiFetchWithFallback(
           continue;
         }
 
+        const contentType = response.headers.get('content-type') ?? '';
+        if (contentType.includes('text/html')) {
+          lastHtmlResponse = response;
+          continue;
+        }
+
         return response;
       } catch (error) {
         networkErrors.push(error);
       }
     }
+  }
+
+  if (lastHtmlResponse) {
+    return lastHtmlResponse;
   }
 
   if (networkErrors.length > 0) {

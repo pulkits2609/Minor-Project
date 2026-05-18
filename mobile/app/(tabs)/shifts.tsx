@@ -9,10 +9,9 @@ import { globalAuthToken } from '@/constants/auth';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
+import { apiFetchWithFallback } from '@/constants/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
-
-type Palette = typeof Colors.dark;
 
 type ShiftRecord = {
   id: string;
@@ -56,10 +55,13 @@ export default function ShiftsScreen() {
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
 
   const fetchShifts = async () => {
-    if (!globalAuthToken) return;
+    if (!globalAuthToken) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch('https://api.pulkitworks.info/api/shifts', {
+      const res = await apiFetchWithFallback('/api/shifts', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
 
@@ -67,7 +69,7 @@ export default function ShiftsScreen() {
       if (!res.ok || !contentType || !contentType.includes('application/json')) {
         const text = await res.text();
         console.error('Shifts API error:', text);
-        setIsLoading(false);
+        setLoading(false);
         return;
       }
 
@@ -85,7 +87,7 @@ export default function ShiftsScreen() {
   const fetchWorkers = async () => {
     if (!globalAuthToken) return;
     try {
-      const res = await fetch('https://api.pulkitworks.info/api/users/workers', {
+      const res = await apiFetchWithFallback('/api/users/workers', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const data = await res.json();
@@ -102,7 +104,7 @@ export default function ShiftsScreen() {
     if (isSupervisor) {
       fetchWorkers();
     }
-  }, []);
+  }, [isSupervisor]);
 
   const handleCreateShift = async () => {
     if (!newLocation) {
@@ -122,7 +124,7 @@ export default function ShiftsScreen() {
     };
 
     try {
-      const res = await fetch('https://api.pulkitworks.info/api/shifts', {
+      const res = await apiFetchWithFallback('/api/shifts', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
@@ -146,7 +148,7 @@ export default function ShiftsScreen() {
       } else {
         Alert.alert('Error', data.error || data.message || 'Failed to create shift');
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Network request failed');
     }
   };
@@ -154,7 +156,7 @@ export default function ShiftsScreen() {
   const handleAssignWorker = async (userId: string) => {
     if (!selectedShiftId) return;
     try {
-      const res = await fetch(`https://api.pulkitworks.info/api/shifts/${selectedShiftId}/assign`, {
+      const res = await apiFetchWithFallback(`/api/shifts/${selectedShiftId}/assign`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
@@ -170,7 +172,7 @@ export default function ShiftsScreen() {
       } else {
         Alert.alert('Error', data.error || 'Failed to assign worker');
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Network request failed');
     }
   };

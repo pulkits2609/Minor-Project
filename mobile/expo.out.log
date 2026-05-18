@@ -1,0 +1,28 @@
+
+> Mine Ops@1.0.0 start
+> expo start --offline --port 8081
+
+env: load .env
+env: export EXPO_PUBLIC_API_URL
+Networking has been disabled
+Starting project at C:\Users\NPC\Desktop\Minor-Project\mobile
+React Compiler enabled
+Starting Metro Bundler
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundling failed 5ms node_modules\expo-router\entry.js (1 module)
+λ Bundling failed 12ms node_modules\expo-router\node\render.js (1 module)
+
+Metro error: Cannot read properties of undefined (reading 'transformFile')
+
+Call Stack
+  processTicksAndRejections (node:internal\process\task_queues)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundling failed 1ms node_modules\expo-router\entry.js (1 module)
+λ Bundling failed 3ms node_modules\expo-router\node\render.js (1 module)
+
+Metro error: Cannot read properties of undefined (reading 'transformFile')
+
+Call Stack
+  processTicksAndRejections (node:internal\process\task_queues)

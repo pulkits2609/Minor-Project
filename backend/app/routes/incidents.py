@@ -1,4 +1,6 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
+from sqlalchemy.exc import SQLAlchemyError
+from app.extensions import db
 from app.utils.jwt_handler import verify_token
 from app.services.incident_service import (
     report_incident,
@@ -33,8 +35,24 @@ def submit_incident():
     if "error" in token_data:
         return jsonify({"error": token_data["error"]}), 401
     
-    data = request.get_json()
-    incident_id = report_incident(token_data["user_id"], data)
+    data = request.get_json(silent=True) or {}
+    if not data.get("location"):
+        return jsonify({"error": "location is required"}), 400
+    if not (data.get("hazard_description") or data.get("description")):
+        return jsonify({"error": "description is required"}), 400
+
+    try:
+        incident_id = report_incident(token_data["user_id"], data)
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        current_app.logger.exception("Incident insert failed")
+        response = {
+            "status": "failed",
+            "error": "Incident could not be saved. Check the cloud incidents table schema and status constraints.",
+        }
+        if current_app.debug:
+            response["details"] = str(getattr(exc, "orig", exc))
+        return jsonify(response), 500
     
     return jsonify({
         "status": "success",

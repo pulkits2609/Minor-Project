@@ -11,6 +11,7 @@ import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 type Palette = typeof Colors.dark;
 type ZoneStatus = 'normal' | 'warning' | 'critical';
+type ToneStatus = ZoneStatus | 'danger' | 'info';
 
 type Zone = {
   zone: string;
@@ -37,7 +38,7 @@ const SENSORS: Sensor[] = [
   { name: 'Humidity Sensor', zone: 'Zone A', value: '65%', status: 'normal' },
   { name: 'Vibration Monitor', zone: 'Zone B', value: '2.3 Hz', status: 'normal' },
   { name: 'Gas Detector', zone: 'Zone C', value: '73 ppm', status: 'critical' },
-  { name: 'Temp Sensor', zone: 'Zone D', value: '40°C', status: 'normal' },
+  { name: 'Temp Sensor', zone: 'Zone D', value: '40 deg C', status: 'normal' },
 ];
 
 export default function MonitoringScreen() {
@@ -93,7 +94,7 @@ export default function MonitoringScreen() {
         <View style={styles.metricGrid}>
           {[
             { label: 'Avg Gas Level', value: '47 ppm', tone: 'warning' as const, icon: 'gas-meter' as const },
-            { label: 'Avg Temperature', value: '43.5°C', tone: 'danger' as const, icon: 'thermostat' as const },
+            { label: 'Avg Temperature', value: '43.5 deg C', tone: 'danger' as const, icon: 'thermostat' as const },
             { label: 'Critical Zones', value: '1', tone: 'danger' as const, icon: 'warning' as const },
             { label: 'System Status', value: 'Warning', tone: 'warning' as const, icon: 'sensors' as const },
           ].map((metric) => (
@@ -163,7 +164,7 @@ export default function MonitoringScreen() {
                 <View style={styles.indicatorHeader}>
                   <ThemedText style={styles.indicatorLabel}>Temperature</ThemedText>
                   <ThemedText style={{ color: palette.tint, fontSize: 18, fontWeight: '800' }}>
-                    {zone.temp}°C
+                    {zone.temp} deg C
                   </ThemedText>
                 </View>
                 <View style={[styles.barTrack, { backgroundColor: palette.surfaceMuted }]}>
@@ -219,9 +220,10 @@ function SectionHeader({ title, subtitle, palette }: { title: string; subtitle: 
   );
 }
 
-function toneColor(tone: ZoneStatus, palette: Palette) {
+function toneColor(tone: ToneStatus, palette: Palette) {
   switch (tone) {
     case 'critical':
+    case 'danger':
       return palette.danger;
     case 'warning':
       return palette.warning;

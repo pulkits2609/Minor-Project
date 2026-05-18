@@ -6,10 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
-import { loadAuthState, setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
-import { type MineOpsRoleKey, homeMetrics as defaultMetrics, liveAlerts as defaultAlerts, roleProfiles } from '@/constants/mineops';
+import { globalAuthToken, globalUserRole, setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
+import { apiFetchWithFallback } from '@/constants/api';
+import { type MineOpsAlert, type MineOpsMetric, type MineOpsRoleKey, type MineOpsTone, homeMetrics as defaultMetrics, liveAlerts as defaultAlerts, roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { globalAuthToken, globalUserRole } from '@/constants/auth';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 type IconName = ComponentProps<typeof MaterialIcons>['name'];
@@ -22,6 +22,22 @@ type DashboardShortcut = {
   icon: IconName;
   action: string;
 };
+
+function normalizeTone(tone: unknown): MineOpsTone {
+  if (tone === 'danger' || tone === 'warning' || tone === 'success' || tone === 'neutral') {
+    return tone;
+  }
+
+  if (tone === 'critical') {
+    return 'danger';
+  }
+
+  return 'warning';
+}
+
+function toIconName(icon: unknown, fallback: IconName = 'warning'): IconName {
+  return typeof icon === 'string' && icon.length > 0 ? (icon as IconName) : fallback;
+}
 
 const roleQuickActions: Record<MineOpsRoleKey, DashboardShortcut[]> = {
   worker: [
@@ -119,15 +135,13 @@ export default function RoleDashboardScreen() {
       }
 
       try {
-        const response = await fetch('https://api.pulkitworks.info/api/dashboard', {
+        const response = await apiFetchWithFallback('/api/dashboard', {
           headers: {
             'Authorization': `Bearer ${globalAuthToken}`,
           },
         });
 
         if (response.status === 401) {
-          const { setGlobalAuthToken, setGlobalUserRole } = require('@/constants/auth');
-          const { router } = require('expo-router');
           await setGlobalAuthToken(null);
           await setGlobalUserRole(null);
           router.replace('/login');
@@ -136,7 +150,7 @@ export default function RoleDashboardScreen() {
 
         if (response.ok) {
           const { data, role } = await response.json();
-          const newMetrics = [];
+          const newMetrics: MineOpsMetric[] = [];
 
           if (role === 'worker' && data) {
             newMetrics.push({ label: 'Tasks', value: (data.tasks?.length || 0).toString(), detail: 'Assigned tasks', tone: 'neutral' as const, icon: 'assignment' });
@@ -163,32 +177,32 @@ export default function RoleDashboardScreen() {
 
           // Map alerts if provided, otherwise keep default fallback
           if (data?.alerts && data.alerts.length > 0) {
-            setDynamicAlerts(data.alerts.map((a: any) => ({
+            setDynamicAlerts(data.alerts.map((a: any): MineOpsAlert => ({
               title: a.title || 'Alert',
               detail: a.detail || 'Notice',
-              tone: a.tone || 'warning',
-              icon: a.icon || 'warning'
+              tone: normalizeTone(a.tone),
+              icon: toIconName(a.icon)
             })));
           } else {
             // Fallback: Fetch real alerts from dedicated endpoint if dashboard summary is empty
             try {
-              const alertRes = await fetch('https://api.pulkitworks.info/api/alerts', {
+              const alertRes = await apiFetchWithFallback('/api/alerts', {
                 headers: { 'Authorization': `Bearer ${globalAuthToken}` },
               });
               if (alertRes.ok) {
                 const alertData = await alertRes.json();
                 if (alertData.status === 'success' && alertData.data.length > 0) {
-                  setDynamicAlerts(alertData.data.slice(0, 4).map((a: any) => ({
+                  setDynamicAlerts(alertData.data.slice(0, 4).map((a: any): MineOpsAlert => ({
                     title: a.title || 'System Alert',
-                    detail: `${a.type.charAt(0).toUpperCase() + a.type.slice(1)} • ${new Date(a.created_at).toLocaleTimeString()}`,
-                    tone: (a.type === 'critical' ? 'danger' : a.type === 'warning' ? 'warning' : 'success') as any,
+                    detail: `${a.type.charAt(0).toUpperCase() + a.type.slice(1)} - ${new Date(a.created_at).toLocaleTimeString()}`,
+                    tone: a.type === 'critical' ? 'danger' : normalizeTone(a.type),
                     icon: a.type === 'critical' ? 'warning' : 'notifications'
                   })));
                 } else {
                   setDynamicAlerts([]); // Clear dummy data if no real alerts exist
                 }
               }
-            } catch (err) {
+            } catch {
               console.warn('Fallback alerts fetch failed');
             }
           }

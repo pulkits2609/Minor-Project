@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
 
 type Palette = typeof Colors.dark;
 type SettingsTab = 'account' | 'security' | 'notifications';
@@ -27,6 +28,7 @@ export default function SettingsScreen() {
   const params = useLocalSearchParams<{ role?: string }>();
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [email, setEmail] = useState('user@coalmine.com');
@@ -130,8 +132,6 @@ export default function SettingsScreen() {
                 <ThemedText style={{ color: palette.danger, fontSize: 14, fontWeight: '800', marginBottom: 4 }}>Danger Zone</ThemedText>
                 <Pressable 
                   onPress={async () => {
-                    const { setGlobalAuthToken, setGlobalUserRole } = require('@/constants/auth');
-                    const { router } = require('expo-router');
                     await setGlobalAuthToken(null);
                     await setGlobalUserRole(null);
                     router.replace('/login');

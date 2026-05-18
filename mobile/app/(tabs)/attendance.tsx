@@ -1,10 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View, ActivityIndicator, Platform } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator, Platform } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { globalAuthToken } from '@/constants/auth';
+import { apiFetchWithFallback } from '@/constants/api';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
@@ -43,9 +44,12 @@ export default function AttendanceScreen() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!globalAuthToken) return;
+      if (!globalAuthToken) {
+        setLoading(false);
+        return;
+      }
       try {
-        const res = await fetch('https://api.pulkitworks.info/api/attendance', {
+        const res = await apiFetchWithFallback('/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const data = await res.json();
@@ -56,10 +60,10 @@ export default function AttendanceScreen() {
           const mapped = rawAttendance.map((item: any) => ({
             id: item.id,
             name: item.user_name || item.name || 'Worker',
-            checkIn: item.check_in_time || item.check_in || '—',
-            checkOut: item.check_out_time || item.check_out || '—',
+            checkIn: item.check_in_time || item.check_in || '-',
+            checkOut: item.check_out_time || item.check_out || '-',
             status: (item.status?.charAt(0).toUpperCase() + item.status?.slice(1)) || 'Present',
-            duration: item.duration || '—'
+            duration: item.duration || '-'
           }));
           setAttendance(mapped);
         }
@@ -83,7 +87,7 @@ export default function AttendanceScreen() {
     if (!globalAuthToken) return;
     try {
       // First, try to get the latest shift to check into
-      const shiftRes = await fetch('https://api.pulkitworks.info/api/shifts', {
+      const shiftRes = await apiFetchWithFallback('/api/shifts', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
       const shiftData = await shiftRes.json();
@@ -94,7 +98,7 @@ export default function AttendanceScreen() {
         return;
       }
 
-      const res = await fetch(`https://api.pulkitworks.info/api/attendance/${type}`, {
+      const res = await apiFetchWithFallback(`/api/attendance/${type}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${globalAuthToken}`,
@@ -106,7 +110,7 @@ export default function AttendanceScreen() {
       if (res.ok) {
         alert(`Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
         // Refresh data
-        const refreshRes = await fetch('https://api.pulkitworks.info/api/attendance', {
+        const refreshRes = await apiFetchWithFallback('/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
         const refreshData = await refreshRes.json();
@@ -114,17 +118,17 @@ export default function AttendanceScreen() {
           setAttendance(refreshData.data.map((item: any) => ({
             id: item.id,
             name: item.user_name || item.name || 'Worker',
-            checkIn: item.check_in_time || item.check_in || '—',
-            checkOut: item.check_out_time || item.check_out || '—',
+            checkIn: item.check_in_time || item.check_in || '-',
+            checkOut: item.check_out_time || item.check_out || '-',
             status: (item.status?.charAt(0).toUpperCase() + item.status?.slice(1)) || 'Present',
-            duration: item.duration || '—'
+            duration: item.duration || '-'
           })));
         }
       } else {
         const errorData = await res.json();
         alert(errorData.error || `Failed to ${type}`);
       }
-    } catch (err) {
+    } catch {
       alert('Connection error');
     }
   };
@@ -246,7 +250,7 @@ export default function AttendanceScreen() {
                 <View>
                   <ThemedText style={styles.recordName}>{person.name}</ThemedText>
                   <ThemedText style={{ color: palette.muted, fontSize: 12, marginTop: 4 }}>
-                    Check in {person.checkIn} • Check out {person.checkOut}
+                    Check in {person.checkIn} - Check out {person.checkOut}
                   </ThemedText>
                 </View>
                 <View style={[styles.statusPill, { backgroundColor: statusBackground(person.status, palette) }]}>
@@ -274,8 +278,8 @@ export default function AttendanceScreen() {
           <ThemedText type="subtitle">Daily Summary</ThemedText>
           <View style={styles.summaryGrid}>
             {[
-              { label: 'Average Check In Time', value: attendance.length > 0 ? attendance[0].checkIn : '—' },
-              { label: 'Average Check Out Time', value: attendance.find(a => a.checkOut !== '—')?.checkOut || '—' },
+              { label: 'Average Check In Time', value: attendance.length > 0 ? attendance[0].checkIn : '-' },
+              { label: 'Average Check Out Time', value: attendance.find(a => a.checkOut !== '-')?.checkOut || '-' },
               {
                 label: 'Attendance Rate',
                 value: stats.total > 0 ? `${Math.round((stats.present / stats.total) * 100)}%` : '0%',
