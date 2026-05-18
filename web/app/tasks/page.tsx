@@ -7,6 +7,10 @@ import {
   Circle,
   Plus,
   Search,
+  ClipboardList,
+  Clock,
+  Loader2,
+  X,
 } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -26,14 +30,32 @@ interface TasksResponse {
   data: TaskRow[];
 }
 
+const priorityStyles = {
+  high:   { badge: "bg-red-500/15 text-red-400 border-red-500/25",    bar: "bg-red-500",    label: "HIGH" },
+  medium: { badge: "bg-yellow-500/15 text-yellow-400 border-yellow-500/25", bar: "bg-yellow-400", label: "MEDIUM" },
+  low:    { badge: "bg-green-500/15 text-green-400 border-green-500/25",  bar: "bg-green-500", label: "LOW" },
+};
+
+const statusStyles = {
+  assigned:    { label: "Assigned",    chip: "bg-neutral-700/60 text-neutral-300 border-neutral-600/50" },
+  in_progress: { label: "In Progress", chip: "bg-orange-500/15 text-orange-400 border-orange-500/25" },
+  completed:   { label: "Completed",   chip: "bg-green-500/15 text-green-400 border-green-500/25" },
+};
+
+const filterOptions = [
+  { key: "all",         label: "All" },
+  { key: "pending",     label: "Pending" },
+  { key: "in-progress", label: "In Progress" },
+  { key: "completed",   label: "Done" },
+];
+
 export function TasksContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const pathParts = pathname.split("/").filter(Boolean);
-  const roleFromPath =
-    pathParts[0] === "dashboard" && pathParts[1] ? pathParts[1] : null;
+  const roleFromPath = pathParts[0] === "dashboard" && pathParts[1] ? pathParts[1] : null;
   const role = roleFromPath || searchParams.get("role") || "worker";
-  const canAssignTask = role === "supervisor";
+  const canAssignTask = role === "supervisor" || role === "admin" || role === "authority";
 
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -53,16 +75,13 @@ export function TasksContent() {
 
   const openAssignModal = async () => {
     setIsAssignOpen(true);
-    if (workers.length > 0) return; // already fetched
+    if (workers.length > 0) return;
     setWorkersLoading(true);
     try {
       const res = await apiFetch<{ status: string; data: { id: string; name: string }[] }>("/api/tasks/workers");
       setWorkers(res.data || []);
-    } catch {
-      // non-fatal — supervisor can still see an empty list
-    } finally {
-      setWorkersLoading(false);
-    }
+    } catch { /* non-fatal */ }
+    finally { setWorkersLoading(false); }
   };
 
   useEffect(() => {
@@ -88,16 +107,12 @@ export function TasksContent() {
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
-      const matchesSearch = task.task_name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      const matchesSearch = task.task_name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus =
         filterStatus === "all" ||
-        (filterStatus === "pending"
-          ? task.status === "assigned"
-          : filterStatus === "in-progress"
-            ? task.status === "in_progress"
-            : task.status === "completed");
+        (filterStatus === "pending" ? task.status === "assigned"
+          : filterStatus === "in-progress" ? task.status === "in_progress"
+          : task.status === "completed");
       return matchesSearch && matchesStatus;
     });
   }, [tasks, searchTerm, filterStatus]);
@@ -111,12 +126,9 @@ export function TasksContent() {
   };
 
   const submitAssign = async () => {
-    if (!canAssignTask) {
-      setError("Only supervisors can assign tasks.");
-      return;
-    }
-    if (!assignForm.task_name.trim() || !assignForm.priority || !assignForm.assigned_to.trim()) {
-      setError("Task name, priority, and assigned_to are required.");
+    if (!canAssignTask) { setError("Only supervisors can assign tasks."); return; }
+    if (!assignForm.task_name.trim() || !assignForm.assigned_to.trim()) {
+      setError("Task name and assigned worker are required.");
       return;
     }
     setError(null);
@@ -132,12 +144,7 @@ export function TasksContent() {
         }),
       });
       setIsAssignOpen(false);
-      setAssignForm({
-        task_name: "",
-        description: "",
-        priority: "medium",
-        assigned_to: "",
-      });
+      setAssignForm({ task_name: "", description: "", priority: "medium", assigned_to: "" });
       await reloadTasks();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to assign task");
@@ -146,276 +153,256 @@ export function TasksContent() {
     }
   };
 
+  const totalTasks = tasks.length;
+  const inProgress = tasks.filter((t) => t.status === "in_progress").length;
+  const pending = tasks.filter((t) => t.status === "assigned").length;
+  const completed = tasks.filter((t) => t.status === "completed").length;
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* HEADER */}
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 max-w-6xl">
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between animate-fade-in-up">
           <div>
-            <h2 className="text-3xl font-bold mb-2">Tasks</h2>
-            <p className="text-gray-400">Manage and track work assignments</p>
+            <h2 className="text-2xl font-black text-white mb-1">Tasks</h2>
+            <p className="text-sm text-neutral-500">Manage and track work assignments</p>
           </div>
-          {(role === "supervisor" ||
-            role === "admin" ||
-            role === "authority") && (
+          {canAssignTask && (
             <button
               onClick={openAssignModal}
-              className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg font-semibold transition flex items-center gap-2"
+              className="btn-primary"
             >
-              <Plus size={20} />
+              <Plus size={16} />
               Assign Task
             </button>
           )}
         </div>
 
+        {/* ── Error ── */}
         {error && (
-          <div className="p-3 bg-red-900/30 border border-red-700 rounded-lg text-sm text-red-300">
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center gap-2.5 text-sm text-red-300 animate-fade-in">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
             {error}
           </div>
         )}
 
-        {/* STATS */}
-        <div className="grid grid-cols-4 gap-4">
-          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
-            <p className="text-xs text-gray-400 mb-1">Total Tasks</p>
-            <p className="text-2xl font-bold text-blue-400">{tasks.length}</p>
-          </div>
-          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
-            <p className="text-xs text-gray-400 mb-1">In Progress</p>
-            <p className="text-2xl font-bold text-orange-400">
-              {tasks.filter((t) => t.status === "in_progress").length}
-            </p>
-          </div>
-          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
-            <p className="text-xs text-gray-400 mb-1">Pending</p>
-            <p className="text-2xl font-bold text-yellow-400">
-              {tasks.filter((t) => t.status === "assigned").length}
-            </p>
-          </div>
-          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
-            <p className="text-xs text-gray-400 mb-1">Completed</p>
-            <p className="text-2xl font-bold text-green-400">
-              {tasks.filter((t) => t.status === "completed").length}
-            </p>
-          </div>
+        {/* ── Stat cards ── */}
+        <div className="grid grid-cols-4 gap-4 animate-fade-in-up">
+          {[
+            { label: "Total Tasks",  value: totalTasks, icon: <ClipboardList size={18} />, color: "text-blue-400",   bg: "bg-blue-500/10" },
+            { label: "In Progress",  value: inProgress, icon: <Loader2 size={18} />,       color: "text-orange-400", bg: "bg-orange-500/10" },
+            { label: "Pending",      value: pending,    icon: <Clock size={18} />,          color: "text-yellow-400", bg: "bg-yellow-500/10" },
+            { label: "Completed",    value: completed,  icon: <CheckCircle2 size={18} />,   color: "text-green-400",  bg: "bg-green-500/10" },
+          ].map((s) => (
+            <div key={s.label} className="stat-card">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">{s.label}</span>
+                <div className={`w-8 h-8 rounded-lg ${s.bg} ${s.color} flex items-center justify-center`}>{s.icon}</div>
+              </div>
+              <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
         </div>
 
-        {/* SEARCH & FILTER */}
-        <div className="flex gap-4">
-          <div className="flex-1 relative">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-            />
+        {/* ── Search & filter ── */}
+        <div className="flex gap-3 animate-fade-in-up">
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
             <input
               type="text"
               placeholder="Search tasks..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-neutral-900 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="input-premium pl-10"
             />
           </div>
           <div className="flex gap-2">
-            {["all", "pending", "in-progress", "completed"].map((status) => (
+            {filterOptions.map((opt) => (
               <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
-                  filterStatus === status
-                    ? "bg-orange-600 text-white"
-                    : "bg-neutral-800 text-gray-400 hover:bg-neutral-700"
+                key={opt.key}
+                onClick={() => setFilterStatus(opt.key)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  filterStatus === opt.key
+                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/25"
+                    : "bg-neutral-900 text-neutral-400 border border-white/[0.07] hover:border-orange-500/30 hover:text-white"
                 }`}
               >
-                {status.replace("-", " ").toUpperCase()}
+                {opt.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* TASKS GRID */}
-        <div className="grid grid-cols-2 gap-4">
-          {isLoading && (
-            <div className="text-sm text-gray-400">Loading tasks...</div>
-          )}
-          {!isLoading && filteredTasks.length === 0 && (
-            <div className="text-sm text-gray-400">No tasks found.</div>
-          )}
-          {filteredTasks.map((task) => (
-            <div
-              key={task.id}
-              className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 hover:border-orange-600/50 transition"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <button
-                  className={`text-2xl transition hover:scale-110 ${
-                    task.status === "completed"
-                      ? "text-green-400"
-                      : "text-gray-400 hover:text-orange-400"
-                  }`}
-                  onClick={() =>
-                    updateStatus(
-                      task.id,
-                      task.status === "completed"
-                        ? "assigned"
-                        : task.status === "assigned"
-                          ? "in_progress"
-                          : "completed"
-                    )
-                  }
+        {/* ── Task grid ── */}
+        {isLoading && (
+          <div className="grid grid-cols-2 gap-4">
+            {[1,2,3,4].map(i => <div key={i} className="h-52 skeleton rounded-xl" />)}
+          </div>
+        )}
+
+        {!isLoading && filteredTasks.length === 0 && (
+          <div className="text-center py-16 text-neutral-600">
+            <ClipboardList size={32} className="mx-auto mb-3 opacity-30" />
+            <p className="text-sm">No tasks found.</p>
+          </div>
+        )}
+
+        {!isLoading && filteredTasks.length > 0 && (
+          <div className="grid grid-cols-2 gap-4 animate-fade-in-up">
+            {filteredTasks.map((task) => {
+              const p = priorityStyles[task.priority] || priorityStyles.medium;
+              const s = statusStyles[task.status] || statusStyles.assigned;
+              const nextStatus: TaskRow["status"] =
+                task.status === "completed" ? "assigned"
+                  : task.status === "assigned" ? "in_progress"
+                  : "completed";
+
+              return (
+                <div
+                  key={task.id}
+                  className="group rounded-xl border border-white/[0.06] bg-neutral-900/70 overflow-hidden hover:border-orange-500/20 transition-all hover:-translate-y-0.5"
                 >
-                  {task.status === "completed" ? (
-                    <CheckCircle2 size={24} />
-                  ) : (
-                    <Circle size={24} />
-                  )}
-                </button>
-                <span
-                  className={`px-3 py-1 rounded text-xs font-semibold ${
-                    task.priority === "high"
-                      ? "bg-red-900/30 text-red-400"
-                      : task.priority === "medium"
-                        ? "bg-yellow-900/30 text-yellow-400"
-                        : "bg-green-900/30 text-green-400"
-                  }`}
-                >
-                  {task.priority.toUpperCase()}
-                </span>
-              </div>
+                  {/* Top bar */}
+                  <div className={`h-0.5 w-full ${p.bar}`} />
 
-              <h3 className="font-bold text-lg mb-2">{task.task_name}</h3>
-              <p className="text-sm text-gray-400 mb-4">
-                {task.description || "—"}
-              </p>
+                  <div className="p-5">
+                    {/* Row: checkbox + priority */}
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        onClick={() => updateStatus(task.id, nextStatus)}
+                        className={`transition-all hover:scale-110 ${task.status === "completed" ? "text-green-400" : "text-neutral-600 hover:text-orange-400"}`}
+                      >
+                        {task.status === "completed"
+                          ? <CheckCircle2 size={22} />
+                          : <Circle size={22} />
+                        }
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${p.badge}`}>
+                          {p.label}
+                        </span>
+                        <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg border ${s.chip}`}>
+                          {s.label}
+                        </span>
+                      </div>
+                    </div>
 
-              <div className="space-y-2 mb-4 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Assigned:</span>
-                  <span className="font-semibold">
-                    {task.assigned_to || "—"}
-                  </span>
+                    {/* Task name */}
+                    <h3 className={`font-bold text-base mb-1.5 ${task.status === "completed" ? "line-through text-neutral-600" : "text-white"}`}>
+                      {task.task_name}
+                    </h3>
+                    <p className="text-xs text-neutral-500 mb-4 line-clamp-2 min-h-[2rem]">
+                      {task.description || "No description provided."}
+                    </p>
+
+                    {/* Meta */}
+                    <div className="space-y-1.5 text-xs border-t border-white/[0.05] pt-3">
+                      {task.assigned_to && (
+                        <div className="flex justify-between text-neutral-500">
+                          <span>Assigned to</span>
+                          <span className="text-neutral-300 font-medium">{task.assigned_to}</span>
+                        </div>
+                      )}
+                      {task.created_at && (
+                        <div className="flex justify-between text-neutral-500">
+                          <span>Created</span>
+                          <span className="text-neutral-400">{new Date(task.created_at).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Created:</span>
-                  <span className="font-semibold">
-                    {task.created_at ? new Date(task.created_at).toLocaleString() : "—"}
-                  </span>
-                </div>
-              </div>
+              );
+            })}
+          </div>
+        )}
 
-              <button
-                className={`w-full py-2 rounded font-semibold text-sm transition ${
-                  task.status === "completed"
-                    ? "bg-neutral-800 text-gray-400"
-                    : "bg-orange-600/20 text-orange-400 border border-orange-600/30 hover:bg-orange-600/30"
-                }`}
-              >
-                {task.status === "completed"
-                  ? "Completed"
-                  : task.status === "in_progress"
-                    ? "In Progress"
-                    : "Assigned"}
-              </button>
-            </div>
-          ))}
-        </div>
-
+        {/* ── Assign Task Modal ── */}
         {isAssignOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-lg rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-              <div className="flex items-start justify-between gap-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: "blur(8px)", background: "rgba(0,0,0,0.7)" }}>
+            <div className="w-full max-w-lg rounded-2xl border border-white/[0.1] bg-neutral-900 shadow-2xl animate-fade-in-up">
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.07]">
                 <div>
-                  <h3 className="text-xl font-bold">Assign Task</h3>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Select a worker from the list to assign the task.
-                  </p>
+                  <h3 className="text-lg font-black text-white">Assign New Task</h3>
+                  <p className="text-xs text-neutral-500 mt-0.5">Select a worker and fill in task details</p>
                 </div>
                 <button
                   onClick={() => setIsAssignOpen(false)}
-                  className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition"
+                  className="w-8 h-8 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] flex items-center justify-center text-neutral-400 hover:text-white transition-all"
                 >
-                  ✕
+                  <X size={16} />
                 </button>
               </div>
 
-              <div className="mt-5 space-y-4">
+              {/* Modal body */}
+              <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs text-gray-400 mb-2 block">Task name</label>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wider">Task Name *</label>
                   <input
                     value={assignForm.task_name}
-                    onChange={(e) =>
-                      setAssignForm((p) => ({ ...p, task_name: e.target.value }))
-                    }
-                    className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    placeholder="e.g. Inspect Zone A"
+                    onChange={(e) => setAssignForm((p) => ({ ...p, task_name: e.target.value }))}
+                    className="input-premium"
+                    placeholder="e.g. Inspect Zone A ventilation"
                   />
                 </div>
+
                 <div>
-                  <label className="text-xs text-gray-400 mb-2 block">Description</label>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wider">Description</label>
                   <textarea
                     value={assignForm.description}
-                    onChange={(e) =>
-                      setAssignForm((p) => ({ ...p, description: e.target.value }))
-                    }
-                    className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    placeholder="Optional"
+                    onChange={(e) => setAssignForm((p) => ({ ...p, description: e.target.value }))}
+                    className="input-premium resize-none"
+                    placeholder="Optional description..."
                     rows={3}
                   />
                 </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs text-gray-400 mb-2 block">Priority</label>
+                    <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wider">Priority *</label>
                     <select
                       value={assignForm.priority}
-                      onChange={(e) =>
-                        setAssignForm((p) => ({
-                          ...p,
-                          priority: e.target.value as TaskRow["priority"],
-                        }))
-                      }
-                      className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      onChange={(e) => setAssignForm((p) => ({ ...p, priority: e.target.value as TaskRow["priority"] }))}
+                      className="input-premium"
                     >
-                      <option value="low">LOW</option>
-                      <option value="medium">MEDIUM</option>
-                      <option value="high">HIGH</option>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 mb-2 block">Assign to Worker</label>
+                    <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wider">Assign to Worker *</label>
                     <select
                       value={assignForm.assigned_to}
-                      onChange={(e) =>
-                        setAssignForm((p) => ({ ...p, assigned_to: e.target.value }))
-                      }
-                      className="w-full px-4 py-3 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      onChange={(e) => setAssignForm((p) => ({ ...p, assigned_to: e.target.value }))}
+                      className="input-premium"
                       disabled={workersLoading}
                     >
-                      <option value="">
-                        {workersLoading ? "Loading workers…" : "Select a worker"}
-                      </option>
+                      <option value="">{workersLoading ? "Loading..." : "Select worker"}</option>
                       {workers.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name}
-                        </option>
+                        <option key={w.id} value={w.id}>{w.name}</option>
                       ))}
                     </select>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex gap-3 justify-end pt-2">
-                  <button
-                    onClick={() => setIsAssignOpen(false)}
-                    className="px-5 py-3 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={submitAssign}
-                    disabled={isAssignSubmitting}
-                    className="px-5 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg transition font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isAssignSubmitting ? "Assigning..." : "Assign"}
-                  </button>
-                </div>
+              {/* Modal footer */}
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/[0.07]">
+                <button
+                  onClick={() => setIsAssignOpen(false)}
+                  className="btn-ghost py-2.5 px-5"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitAssign}
+                  disabled={isAssignSubmitting}
+                  className="btn-primary py-2.5 px-5"
+                >
+                  {isAssignSubmitting ? <><Loader2 size={14} className="animate-spin" /> Assigning...</> : "Assign Task"}
+                </button>
               </div>
             </div>
           </div>
@@ -427,7 +414,7 @@ export function TasksContent() {
 
 export default function TasksPage() {
   return (
-    <Suspense fallback={<div>Loading team...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-neutral-950" />}>
       <TasksContent />
     </Suspense>
   );

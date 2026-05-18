@@ -1,6 +1,7 @@
 from app.models.user import User
 from app.extensions import db
 from app.utils.jwt_handler import generate_token
+# pyrefly: ignore [missing-import]
 import bcrypt
 
 VALID_ROLES = ['worker','supervisor','safety_officer','admin','authority']
@@ -11,6 +12,9 @@ def register_user(data):
     email = data.get("email")
     password = data.get("password")
     role = data.get("role")
+
+    if password is not None and not isinstance(password, str):
+        password = str(password)
 
     # Validation
     if not all([name, email, password, role]):
@@ -47,8 +51,11 @@ def login_user(data):
     email = data.get("email")
     password = data.get("password")
 
+    if password is not None and not isinstance(password, str):
+        password = str(password)
+
     # Validation
-    if not email or not password:
+    if not email or password == "":
         return {"error": "Email and password required"}, 400
 
     # Find user

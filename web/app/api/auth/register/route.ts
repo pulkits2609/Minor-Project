@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json(
       { message: "Unable to connect to registration server" },
-      { status: 502 }
+      { status: 502 },
     );
   }
 }
