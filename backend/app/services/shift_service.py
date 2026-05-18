@@ -1,81 +1,97 @@
 from app.extensions import db
-from sqlalchemy import text
+from app.models.shift import Shift, ShiftAssignment
+import uuid
+
+
+def _coerce_uuid(value):
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
+
+
+def _shift_to_dict(shift):
+    return {
+        "id": str(shift.id),
+        "start_time": shift.start_time,
+        "end_time": shift.end_time,
+        "location": shift.location,
+        "created_by": str(shift.created_by),
+    }
 
 #Create Shift
 def create_shift(start_time, end_time, location, supervisor_id):
-    query = text("""
-        INSERT INTO shifts (id, start_time, end_time, location, created_by)
-        VALUES (gen_random_uuid(), :start_time, :end_time, :location, :created_by)
-        RETURNING id
-    """)
-    result = db.session.execute(query, {
-        "start_time": start_time,
-        "end_time": end_time,
-        "location": location,
-        "created_by": supervisor_id
-    }).fetchone()
+    shift = Shift(
+        start_time=start_time,
+        end_time=end_time,
+        location=location,
+        created_by=_coerce_uuid(supervisor_id),
+    )
 
+    db.session.add(shift)
     db.session.commit()
-    return result[0]
+    return str(shift.id)
 
 
 #Get Shifts
 def get_shifts(user_id, role):
+    current_user_id = _coerce_uuid(user_id)
+
     if role == "supervisor":
-        query = text("""
-            SELECT * FROM shifts
-            WHERE created_by = :user_id
-        """)
-        result = db.session.execute(query, {"user_id": user_id}).fetchall()
+        shifts = (
+            Shift.query
+            .filter(Shift.created_by == current_user_id)
+            .all()
+        )
 
     else:
-        query = text("""
-            SELECT s.*
-            FROM shifts s
-            JOIN shift_assignments sa ON s.id = sa.shift_id
-            WHERE sa.user_id = :user_id
-        """)
-        result = db.session.execute(query, {"user_id": user_id}).fetchall()
+        shifts = (
+            db.session.query(Shift)
+            .join(ShiftAssignment, Shift.id == ShiftAssignment.shift_id)
+            .filter(ShiftAssignment.user_id == current_user_id)
+            .all()
+        )
 
-    return [dict(row._mapping) for row in result]
+    return [_shift_to_dict(shift) for shift in shifts]
 
 
 # Assign Workers
 def assign_workers(shift_id, user_ids):
+    shift_uuid = _coerce_uuid(shift_id)
     for uid in user_ids:
-        db.session.execute(text("""
-            INSERT INTO shift_assignments (shift_id, user_id)
-            VALUES (:shift_id, :user_id)
-            ON CONFLICT DO NOTHING
-        """), {"shift_id": shift_id, "user_id": uid})
+        user_uuid = _coerce_uuid(uid)
+        exists = ShiftAssignment.query.filter_by(shift_id=shift_uuid, user_id=user_uuid).first()
+        if not exists:
+            db.session.add(ShiftAssignment(shift_id=shift_uuid, user_id=user_uuid))
 
     db.session.commit()
 
 
 #Remove Worker
 def remove_worker(shift_id, user_id):
-    db.session.execute(text("""
-        DELETE FROM shift_assignments
-        WHERE shift_id = :shift_id AND user_id = :user_id
-    """), {"shift_id": shift_id, "user_id": user_id})
+    assignment = ShiftAssignment.query.filter_by(
+        shift_id=_coerce_uuid(shift_id),
+        user_id=_coerce_uuid(user_id),
+    ).first()
+
+    if assignment:
+        db.session.delete(assignment)
 
     db.session.commit()
 
 
 #Update Shift
 def update_shift(shift_id, start_time, end_time, location, supervisor_id):
-    db.session.execute(text("""
-        UPDATE shifts
-        SET start_time = :start_time,
-            end_time = :end_time,
-            location = :location
-        WHERE id = :shift_id AND created_by = :created_by
-    """), {
-        "shift_id": shift_id,
-        "start_time": start_time,
-        "end_time": end_time,
-        "location": location,
-        "created_by": supervisor_id
-    })
+    shift = Shift.query.filter_by(
+        id=_coerce_uuid(shift_id),
+        created_by=_coerce_uuid(supervisor_id),
+    ).first()
+
+    if not shift:
+        return False
+
+    shift.start_time = start_time
+    shift.end_time = end_time
+    shift.location = location
 
     db.session.commit()
+    return True

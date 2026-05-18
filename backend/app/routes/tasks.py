@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from app.utils.jwt_handler import verify_token
 from app.models.task import Task
 from app.extensions import db
+import uuid
 from app.services.task_service import (
     get_tasks,
     create_task,
@@ -10,6 +11,12 @@ from app.services.task_service import (
 )
 
 tasks_bp = Blueprint("tasks", __name__, url_prefix="/api/tasks")
+
+
+def _coerce_uuid(value):
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
 
 
 #GET TASKS (Worker / Supervisor)
@@ -90,8 +97,13 @@ def update_status():
     if status not in ["assigned", "in_progress", "completed"]:
         return jsonify({"error": "Invalid status"}), 400
 
+    try:
+        task_uuid = _coerce_uuid(task_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid task_id"}), 400
+
     #Check if task exists
-    task = Task.query.filter_by(id=task_id).first()
+    task = Task.query.filter(Task.id == task_uuid).first()
 
     if not task:
         return jsonify({"error": "Task not found"}), 404

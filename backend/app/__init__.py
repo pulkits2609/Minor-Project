@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
+from importlib import import_module
 from app.config import Config
 from app.extensions import db, jwt
 from app.routes.dashboard import dashboard_bp
@@ -19,6 +20,13 @@ def create_app():
     db.init_app(app)
     jwt.init_app(app)
     CORS(app)
+
+    database_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if database_uri.startswith("sqlite"):
+        with app.app_context():
+            import_module("app.models")
+
+            db.create_all()
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(dashboard_bp, url_prefix="/api")

@@ -1,16 +1,36 @@
 from app.extensions import db
-from sqlalchemy import text
-from datetime import date
+from app.models.attendance import Attendance
+from app.models.shift import Shift, ShiftAssignment
+from app.models.user import User
+from datetime import date, datetime
+import uuid
+
+
+def _coerce_uuid(value):
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
+
+
+def _attendance_to_dict(attendance, user_name=None):
+    return {
+        "id": str(attendance.id),
+        "user_id": str(attendance.user_id),
+        "shift_id": str(attendance.shift_id),
+        "user_name": user_name,
+        "date": attendance.date,
+        "check_in": attendance.check_in,
+        "check_out": attendance.check_out,
+        "status": attendance.status,
+    }
 
 
 #Check if assigned
 def is_assigned(user_id, shift_id):
-    result = db.session.execute(text("""
-        SELECT 1 FROM shift_assignments
-        WHERE user_id = :user_id AND shift_id = :shift_id
-    """), {"user_id": user_id, "shift_id": shift_id}).fetchone()
-
-    return result is not None
+    return ShiftAssignment.query.filter_by(
+        user_id=_coerce_uuid(user_id),
+        shift_id=_coerce_uuid(shift_id),
+    ).first() is not None
 
 
 # Check-in
@@ -18,24 +38,31 @@ def check_in(user_id, shift_id):
     if not is_assigned(user_id, shift_id):
         return False, "Not assigned to this shift"
 
-    db.session.execute(text("""
-        INSERT INTO attendance (id, user_id, shift_id, date, check_in, status)
-        VALUES (gen_random_uuid(), :user_id, :shift_id, CURRENT_DATE, NOW(), 'present')
-    """), {"user_id": user_id, "shift_id": shift_id})
+    record = Attendance(
+        user_id=_coerce_uuid(user_id),
+        shift_id=_coerce_uuid(shift_id),
+        date=date.today(),
+        check_in=datetime.utcnow(),
+        status="present",
+    )
 
+    db.session.add(record)
     db.session.commit()
     return True, None
 
 
 #Check-out
 def check_out(user_id, shift_id):
-    db.session.execute(text("""
-        UPDATE attendance
-        SET check_out = NOW()
-        WHERE user_id = :user_id
-        AND shift_id = :shift_id
-        AND date = CURRENT_DATE
-    """), {"user_id": user_id, "shift_id": shift_id})
+    record = Attendance.query.filter_by(
+        user_id=_coerce_uuid(user_id),
+        shift_id=_coerce_uuid(shift_id),
+        date=date.today(),
+    ).first()
+
+    if not record:
+        return False
+
+    record.check_out = datetime.utcnow()
 
     db.session.commit()
     return True
@@ -43,20 +70,23 @@ def check_out(user_id, shift_id):
 
 # Get attendance
 def get_attendance(user_id, role):
+    current_user_id = _coerce_uuid(user_id)
+
     if role == "worker":
-        query = text("""
-            SELECT * FROM attendance
-            WHERE user_id = :user_id
-        """)
-        result = db.session.execute(query, {"user_id": user_id}).fetchall()
+        rows = (
+            db.session.query(Attendance, User.name)
+            .join(User, Attendance.user_id == User.id)
+            .filter(Attendance.user_id == current_user_id)
+            .all()
+        )
 
     else:
-        query = text("""
-            SELECT a.*
-            FROM attendance a
-            JOIN shifts s ON a.shift_id = s.id
-            WHERE s.created_by = :user_id
-        """)
-        result = db.session.execute(query, {"user_id": user_id}).fetchall()
+        rows = (
+            db.session.query(Attendance, User.name)
+            .join(User, Attendance.user_id == User.id)
+            .join(Shift, Attendance.shift_id == Shift.id)
+            .filter(Shift.created_by == current_user_id)
+            .all()
+        )
 
-    return [dict(row._mapping) for row in result]
+    return [_attendance_to_dict(attendance, user_name) for attendance, user_name in rows]

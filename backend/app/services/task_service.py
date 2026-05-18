@@ -1,71 +1,82 @@
 from app.extensions import db
-from sqlalchemy import text
+from app.models.task import Task
+from app.models.user import User
+import uuid
+
+
+def _coerce_uuid(value):
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
+
+
+def _task_to_dict(task, assigned_to=None):
+    return {
+        "id": str(task.id),
+        "task_name": task.task_name,
+        "description": task.description,
+        "priority": task.priority,
+        "status": task.status,
+        "assigned_to": assigned_to if assigned_to is not None else str(task.assigned_to),
+        "assigned_by": str(task.assigned_by) if task.assigned_by else None,
+        "created_at": task.created_at,
+    }
 
 #Get tasks for logged-in user
 def get_tasks(user_id):
-    query = text("""
-        SELECT id, task_name, description, priority, status, created_at
-        FROM tasks
-        WHERE assigned_to = :user_id
-        ORDER BY created_at DESC
-    """)
+    worker_id = _coerce_uuid(user_id)
+    tasks = (
+        Task.query
+        .filter(Task.assigned_to == worker_id)
+        .order_by(Task.created_at.desc())
+        .all()
+    )
 
-    result = db.session.execute(query, {"user_id": user_id}).fetchall()
-
-    return [dict(row._mapping) for row in result]
+    return [_task_to_dict(task) for task in tasks]
 
 
 #Supervisor assigns task
 def create_task(task_name, description, priority, assigned_to, assigned_by):
-    query = text("""
-        INSERT INTO tasks (id, task_name, description, priority, status, assigned_to, assigned_by)
-        VALUES (gen_random_uuid(), :task_name, :description, :priority, 'assigned', :assigned_to, :assigned_by)
-        RETURNING id
-    """)
+    task = Task(
+        task_name=task_name,
+        description=description,
+        priority=priority,
+        status="assigned",
+        assigned_to=_coerce_uuid(assigned_to),
+        assigned_by=_coerce_uuid(assigned_by),
+    )
 
-    result = db.session.execute(query, {
-        "task_name": task_name,
-        "description": description,
-        "priority": priority,
-        "assigned_to": assigned_to,
-        "assigned_by": assigned_by
-    }).fetchone()
-
+    db.session.add(task)
     db.session.commit()
 
-    return result[0]
+    return str(task.id)
 
 
 #Update task status (worker)
 def update_task_status(task_id, status, user_id):
-    query = text("""
-        UPDATE tasks
-        SET status = :status, updated_at = NOW()
-        WHERE id = :task_id AND assigned_to = :user_id
-        RETURNING id
-    """)
+    task = (
+        Task.query
+        .filter(Task.id == _coerce_uuid(task_id))
+        .filter(Task.assigned_to == _coerce_uuid(user_id))
+        .first()
+    )
 
-    result = db.session.execute(query, {
-        "task_id": task_id,
-        "status": status,
-        "user_id": user_id
-    }).fetchone()
+    if not task:
+        return False
 
+    task.status = status
     db.session.commit()
 
-    return result is not None
+    return True
 
 
 # Supervisor view all tasks (optional dashboard)
 def get_all_tasks():
-    query = text("""
-        SELECT t.id, t.task_name, t.description, t.priority, t.status, 
-               u.name as assigned_to, t.created_at
-        FROM tasks t
-        LEFT JOIN users u ON t.assigned_to = u.id
-        ORDER BY t.created_at DESC
-    """)
+    rows = (
+        db.session.query(Task, User.name)
+        .outerjoin(User, Task.assigned_to == User.id)
+        .order_by(Task.created_at.desc())
+        .all()
+    )
 
-    result = db.session.execute(query).fetchall()
-
-    return [dict(row._mapping) for row in result]
+    return [_task_to_dict(task, assignee_name) for task, assignee_name in rows]

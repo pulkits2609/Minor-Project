@@ -9,6 +9,7 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { apiFetchWithFallback } from '@/constants/api';
 
 
 import { globalAuthToken } from '@/constants/auth';
@@ -27,6 +28,16 @@ type AlertItem = {
 };
 
 const FILTERS: ('all' | AlertType)[] = ['all', 'critical', 'warning', 'alert', 'info'];
+
+function normalizeAlertType(alert: any): AlertType {
+  const severity = String(alert.severity || '').toLowerCase();
+  const type = String(alert.type || '').toLowerCase();
+
+  if (severity === 'critical' || type === 'critical') return 'critical';
+  if (severity === 'high' || severity === 'warning' || type === 'warning') return 'warning';
+  if (type === 'emergency' || type === 'alert') return 'alert';
+  return 'info';
+}
 
 export default function AlertsScreen() {
   useProtectedRoute(['worker', 'supervisor', 'safety', 'authority']);
@@ -47,7 +58,7 @@ export default function AlertsScreen() {
     async function fetchAlerts() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info/api/alerts', {
+        const res = await apiFetchWithFallback('/api/alerts', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 
@@ -60,15 +71,19 @@ export default function AlertsScreen() {
               id: a.id,
               title: a.title || 'System Alert',
               message: a.message || '',
-              type: a.type || 'info',
+              type: normalizeAlertType(a),
+              zone: a.zone || a.location || 'All zones',
               time: a.created_at || new Date().toLocaleTimeString(),
-              read: a.read || false,
+              action: a.action || (a.is_read ? 'Read' : 'Review'),
             }));
             setAlerts(mappedAlerts);
           }
+        } else {
+          const text = await res.text();
+          console.warn('Alerts API error:', res.status, text.slice(0, 200));
         }
       } catch (err) {
-        console.error('Failed to fetch alerts', err);
+        console.warn('Failed to fetch alerts', err);
       } finally {
         setLoading(false);
       }

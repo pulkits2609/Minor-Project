@@ -1,53 +1,66 @@
 from app.extensions import db
+from app.models.alert import Alert
 from app.models.user import User
-from sqlalchemy import text
 import uuid
+
+
+def _coerce_uuid(value):
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
+
+
+def _alert_to_dict(alert):
+    return {
+        "id": str(alert.id),
+        "type": alert.type,
+        "message": alert.message,
+        "severity": alert.severity,
+        "is_read": alert.is_read,
+        "created_at": alert.created_at,
+    }
 
 #Get alerts for user
 def get_alerts(user_id):
-    query = text("""
-        SELECT id, type, message, severity, is_read, created_at
-        FROM alerts
-        WHERE user_id = :user_id
-        ORDER BY created_at DESC
-    """)
-    
-    result = db.session.execute(query, {"user_id": user_id}).fetchall()
+    alerts = (
+        Alert.query
+        .filter(Alert.user_id == _coerce_uuid(user_id))
+        .order_by(Alert.created_at.desc())
+        .all()
+    )
 
-    return [dict(row._mapping) for row in result]
+    return [_alert_to_dict(alert) for alert in alerts]
 
 
 #Mark alert as read
 def mark_alert_read(alert_id, user_id):
-    query = text("""
-        UPDATE alerts
-        SET is_read = TRUE, updated_at = NOW()
-        WHERE id = :alert_id AND user_id = :user_id
-        RETURNING id
-    """)
-    
-    result = db.session.execute(query, {
-        "alert_id": alert_id,
-        "user_id": user_id
-    }).fetchone()
+    alert = (
+        Alert.query
+        .filter(Alert.id == _coerce_uuid(alert_id))
+        .filter(Alert.user_id == _coerce_uuid(user_id))
+        .first()
+    )
 
+    if not alert:
+        return False
+
+    alert.is_read = True
     db.session.commit()
 
-    return result is not None
+    return True
 
 
 #Emergency alert (broadcast)
 def create_emergency_alert(message, severity="high"):
-    query = text("""
-        INSERT INTO alerts (id, type, message, severity, user_id)
-        SELECT gen_random_uuid(), 'emergency', :message, :severity, id
-        FROM users
-    """)
-
-    db.session.execute(query, {
-        "message": message,
-        "severity": severity
-    })
+    users = User.query.all()
+    for user in users:
+        db.session.add(Alert(
+            user_id=user.id,
+            type="emergency",
+            message=message,
+            severity=severity,
+            is_read=False,
+        ))
 
     db.session.commit()
 

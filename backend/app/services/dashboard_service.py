@@ -2,14 +2,36 @@ from app.models.user import User
 from app.models.task import Task
 from app.models.incident import Incident
 from app.extensions import db
+import uuid
+
+
+OPEN_INCIDENT_STATUSES = ("active", "pending-verification", "assigned")
+
+
+def _coerce_uuid(value):
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
+
+
+def _normalize_incident_status(status):
+    if status == "active":
+        return "pending-verification"
+    return status
 
 # WORKER DASHBOARD
 def get_worker_dashboard(user_id):
-    tasks = Task.query.filter_by(assigned_to=user_id).all()
+    worker_id = _coerce_uuid(user_id)
+    tasks = (
+        Task.query
+        .filter(Task.assigned_to == worker_id)
+        .order_by(Task.created_at.desc())
+        .all()
+    )
 
     task_list = [
         {
-            "id": t.id,
+            "id": str(t.id),
             "title": t.task_name,
             "status": t.status,
             "priority": t.priority
@@ -31,7 +53,7 @@ def get_worker_dashboard(user_id):
 def get_supervisor_dashboard():
     total_workers = User.query.filter_by(role="worker").count()
     total_tasks = Task.query.count()
-    open_incidents_list = Incident.query.filter(Incident.status.in_(["pending-verification", "assigned"])).all()
+    open_incidents_list = Incident.query.filter(Incident.status.in_(OPEN_INCIDENT_STATUSES)).all()
 
     return {
         "team_members": [],  # TODO: fetch workers
@@ -45,7 +67,7 @@ def get_supervisor_dashboard():
             {
                 "id": str(i.id),
                 "description": i.description,
-                "status": i.status,
+                "status": _normalize_incident_status(i.status),
                 "severity": i.severity
             }
             for i in open_incidents_list
@@ -62,7 +84,7 @@ def get_safety_dashboard():
             {
                 "id": str(i.id),
                 "severity": i.severity,
-                "status": i.status,
+                "status": _normalize_incident_status(i.status),
                 "description": i.description,
                 "location": i.location
             }
