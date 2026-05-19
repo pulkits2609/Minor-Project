@@ -10,7 +10,7 @@ import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 import { globalAuthToken, loadAuthState } from '@/constants/auth';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, getApiErrorMessage, readApiJson } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 
@@ -72,7 +72,7 @@ export default function IncidentReportScreen() {
       const incidentDescription = formState.description.trim();
       const payload = {
         location: formState.location,
-        severity: formState.severity,
+        severity: formState.severity.toLowerCase(),
         description: incidentDescription,
         hazard_description: incidentDescription,
       };
@@ -89,34 +89,25 @@ export default function IncidentReportScreen() {
         }
       );
 
-      const contentType = res.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await res.text();
-        console.warn('Incident API invalid response:', {
-          status: res.status,
-          contentType,
-          preview: text.slice(0, 300),
-        });
-        const message =
-          res.status >= 500
-            ? 'Backend crashed while saving the incident. This is a server/database error, not a mobile form error.'
-            : 'Incident API returned a non-JSON response. Check that the backend API server is running.';
-        Alert.alert('Error', message);
-        return;
-      }
-
-      const data = await res.json();
+      const data = await readApiJson<{
+        status?: string;
+        reference?: string;
+        id?: string;
+        error?: string;
+        message?: string;
+      }>(res);
       
       if (!res.ok) {
-        Alert.alert('Error', data.error || data.message || 'Failed to submit incident');
+        Alert.alert('Error', getApiErrorMessage(data, 'Failed to submit incident'));
         return;
       }
 
-      if (data.status === 'success' || data.reference || data.id) {
-        setReference(data.reference || `INC-${String(data.id).slice(0, 8).toUpperCase()}`);
+      if (data?.status === 'success' || data?.reference || data?.id) {
+        const reportReference = data.reference || `INC-${String(data.id).slice(0, 8).toUpperCase()}`;
+        setReference(reportReference);
         setSubmitted(true);
       } else {
-        Alert.alert('Error', data.message || data.error || 'Failed to submit incident');
+        Alert.alert('Error', getApiErrorMessage(data, 'Failed to submit incident'));
       }
     } catch (err) {
       console.warn('Failed to submit incident', err);

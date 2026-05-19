@@ -11,6 +11,6 @@ class Incident(db.Model):
     severity = db.Column(db.Text)
     description = db.Column(db.Text)
 
-    status = db.Column(db.Text, default="active")
+    status = db.Column(db.Text, default="pending-verification")
 
     created_at = db.Column(db.DateTime, server_default=db.func.now())

@@ -3,7 +3,8 @@ from app.models.incident import Incident
 from app.models.user import User
 import uuid
 
-OPEN_INCIDENT_STATUS = "active"
+OPEN_INCIDENT_STATUS = "pending-verification"
+LEGACY_OPEN_INCIDENT_STATUS = "active"
 
 
 def _coerce_uuid(value):
@@ -13,7 +14,7 @@ def _coerce_uuid(value):
 
 
 def _normalize_incident_status(status):
-    if status == OPEN_INCIDENT_STATUS:
+    if status == LEGACY_OPEN_INCIDENT_STATUS:
         return "pending-verification"
     return status
 
@@ -33,7 +34,7 @@ def _incident_to_dict(incident, reporter=None):
 
 
 def _status_for_db(status):
-    if status == "pending-verification":
+    if status == LEGACY_OPEN_INCIDENT_STATUS:
         return OPEN_INCIDENT_STATUS
     return status
 
@@ -47,7 +48,7 @@ def _normalize_incident_row(row):
 
 def report_incident(reporter_id, data):
     location = data.get("location")
-    severity = data.get("severity", "Medium")
+    severity = str(data.get("severity", "medium")).strip().lower()
     # Handle mobile's specific fields if sent to /incidents/smp/hazard
     description = data.get("hazard_description") or data.get("description")
 
