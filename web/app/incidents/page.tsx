@@ -87,11 +87,10 @@ export function IncidentsContent() {
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
-                  filterStatus === status
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${filterStatus === status
                     ? "bg-orange-600 text-white"
                     : "bg-neutral-800 text-gray-400 hover:bg-neutral-700"
-                }`}
+                  }`}
               >
                 {status.replace("-", " ").toUpperCase()}
               </button>
@@ -165,30 +164,28 @@ export function IncidentsContent() {
                     </td>
                     <td className="py-4 px-4">
                       <span
-                        className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
-                          incident.severity === "critical"
+                        className={`inline-block px-3 py-1 rounded text-xs font-semibold ${incident.severity === "critical"
                             ? "bg-red-900/30 text-red-400"
                             : incident.severity === "high"
                               ? "bg-orange-900/30 text-orange-400"
                               : incident.severity === "medium"
                                 ? "bg-yellow-900/30 text-yellow-400"
                                 : "bg-green-900/30 text-green-400"
-                        }`}
+                          }`}
                       >
                         {incident.severity.toUpperCase()}
                       </span>
                     </td>
                     <td className="py-4 px-4">
                       <span
-                        className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
-                          incident.status === "resolved"
+                        className={`inline-block px-3 py-1 rounded text-xs font-semibold ${incident.status === "resolved"
                             ? "bg-green-900/30 text-green-400"
                             : incident.status === "escalated"
                               ? "bg-red-900/30 text-red-400"
                               : incident.status === "assigned"
                                 ? "bg-blue-900/30 text-blue-400"
                                 : "bg-yellow-900/30 text-yellow-400"
-                        }`}
+                          }`}
                       >
                         {incident.status.replace("-", " ").toUpperCase()}
                       </span>
