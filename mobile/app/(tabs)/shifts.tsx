@@ -9,7 +9,7 @@ import { globalAuthToken } from '@/constants/auth';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, getApiErrorMessage, readApiJson } from '@/constants/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
@@ -27,6 +27,19 @@ type Worker = {
   email: string;
 };
 
+type ApiListResponse<T> = {
+  status?: string;
+  data?: T[];
+  error?: string;
+  message?: string;
+};
+
+type ApiStatusResponse = {
+  status?: string;
+  error?: string;
+  message?: string;
+};
+
 export default function ShiftsScreen() {
   useProtectedRoute(['worker', 'supervisor', 'admin', 'authority']);
 
@@ -36,10 +49,11 @@ export default function ShiftsScreen() {
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
 
-  const isSupervisor = ['supervisor', 'admin', 'authority'].includes(selectedRole.key);
+  const canManageShifts = selectedRole.key === 'supervisor';
 
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [screenError, setScreenError] = useState<string | null>(null);
 
   // Create Shift State
   const [isCreating, setIsCreating] = useState(false);
@@ -60,25 +74,29 @@ export default function ShiftsScreen() {
       return;
     }
     setLoading(true);
+    setScreenError(null);
     try {
       const res = await apiFetchWithFallback('/api/shifts', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
+      const data = await readApiJson<ApiListResponse<ShiftRecord>>(res);
 
-      const contentType = res.headers.get('content-type');
-      if (!res.ok || !contentType || !contentType.includes('application/json')) {
-        const text = await res.text();
-        console.error('Shifts API error:', text);
-        setLoading(false);
+      if (!res.ok || data?.status !== 'success') {
+        setScreenError(
+          getApiErrorMessage(
+            data,
+            res.status >= 500
+              ? 'Unable to load shifts. Please sign in again if your session has expired.'
+              : 'Unable to load shifts.'
+          )
+        );
         return;
       }
 
-      const data = await res.json();
-      if (data.status === 'success') {
-        setShifts(data.data || []);
-      }
+      setShifts(data.data || []);
     } catch (err) {
       console.error('Failed to fetch shifts', err);
+      setScreenError(err instanceof Error ? err.message : 'Unable to load shifts.');
     } finally {
       setLoading(false);
     }
@@ -90,21 +108,24 @@ export default function ShiftsScreen() {
       const res = await apiFetchWithFallback('/api/users/workers', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
-      const data = await res.json();
-      if (data.status === 'success') {
+      const data = await readApiJson<ApiListResponse<Worker>>(res);
+      if (res.ok && data?.status === 'success') {
         setWorkers(data.data || []);
+      } else {
+        setScreenError(getApiErrorMessage(data, 'Unable to load workers for shift assignment.'));
       }
     } catch (err) {
       console.error('Failed to fetch workers', err);
+      setScreenError(err instanceof Error ? err.message : 'Unable to load workers for shift assignment.');
     }
   };
 
   useEffect(() => {
     fetchShifts();
-    if (isSupervisor) {
+    if (canManageShifts) {
       fetchWorkers();
     }
-  }, [isSupervisor]);
+  }, [canManageShifts]);
 
   const handleCreateShift = async () => {
     if (!newLocation) {
@@ -137,8 +158,8 @@ export default function ShiftsScreen() {
         })
       });
 
-      const data = await res.json();
-      if (data.status === 'success') {
+      const data = await readApiJson<ApiStatusResponse>(res);
+      if (res.ok && data?.status === 'success') {
         Alert.alert('Success', 'Shift created successfully!');
         setIsCreating(false);
         setNewLocation('');
@@ -146,7 +167,7 @@ export default function ShiftsScreen() {
         setEndDate(new Date());
         fetchShifts();
       } else {
-        Alert.alert('Error', data.error || data.message || 'Failed to create shift');
+        Alert.alert('Error', getApiErrorMessage(data, 'Failed to create shift'));
       }
     } catch {
       Alert.alert('Error', 'Network request failed');
@@ -165,12 +186,12 @@ export default function ShiftsScreen() {
         body: JSON.stringify({ user_ids: [userId] })
       });
 
-      const data = await res.json();
-      if (data.status === 'success') {
+      const data = await readApiJson<ApiStatusResponse>(res);
+      if (res.ok && data?.status === 'success') {
         Alert.alert('Success', 'Worker assigned to shift!');
         setAssignModalVisible(false);
       } else {
-        Alert.alert('Error', data.error || 'Failed to assign worker');
+        Alert.alert('Error', getApiErrorMessage(data, 'Failed to assign worker'));
       }
     } catch {
       Alert.alert('Error', 'Network request failed');
@@ -211,8 +232,17 @@ export default function ShiftsScreen() {
           </View>
         </View>
 
+        {screenError ? (
+          <View style={[styles.errorCard, { backgroundColor: palette.danger + '18', borderColor: palette.danger }]}>
+            <MaterialIcons name="error-outline" size={18} color={palette.danger} />
+            <ThemedText style={{ color: palette.danger, fontSize: 13, lineHeight: 19, flex: 1 }}>
+              {screenError}
+            </ThemedText>
+          </View>
+        ) : null}
+
         {/* Supervisor Create Button */}
-        {isSupervisor && !isCreating && (
+        {canManageShifts && !isCreating && (
           <Pressable
             onPress={() => setIsCreating(true)}
             style={({ pressed }) => [
@@ -300,7 +330,7 @@ export default function ShiftsScreen() {
 
         {/* Shift List */}
         <ThemedText type="subtitle" style={{ marginTop: 24, marginBottom: 16 }}>
-          {isSupervisor ? 'Active Shifts' : 'My Schedule'}
+          {canManageShifts ? 'Active Shifts' : 'My Schedule'}
         </ThemedText>
 
         {shifts.length === 0 ? (
@@ -326,7 +356,7 @@ export default function ShiftsScreen() {
                 </View>
               </View>
 
-              {isSupervisor && (
+              {canManageShifts && (
                 <View style={[styles.shiftFooter, { borderTopColor: palette.border }]}>
                   <ThemedText style={{ color: palette.muted, fontSize: 12, flex: 1 }}>
                     ID: {shift.id.substring(0, 8)}...
@@ -430,6 +460,15 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     marginBottom: 24,
+  },
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
   },
   formCard: {
     padding: 20,

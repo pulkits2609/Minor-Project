@@ -1,11 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator, Platform } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator, Platform, Alert } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { globalAuthToken } from '@/constants/auth';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, getApiErrorMessage, readApiJson } from '@/constants/api';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
@@ -16,7 +16,9 @@ import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 type Palette = typeof Colors.dark;
 
 type AttendanceRecord = {
-  id: number;
+  id: string;
+  shiftId: string;
+  date: string;
   name: string;
   checkIn: string;
   checkOut: string;
@@ -24,6 +26,98 @@ type AttendanceRecord = {
   duration: string;
 };
 
+type ShiftRecord = {
+  id: string;
+  start_time?: string;
+  end_time?: string;
+  location?: string;
+};
+
+type ApiListResponse<T> = {
+  status?: string;
+  data?: T[];
+  error?: string;
+  message?: string;
+};
+
+const formatAttendanceTime = (value: unknown) => {
+  if (!value) {
+    return '-';
+  }
+
+  const rawValue = String(value);
+  const parsed = new Date(rawValue);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return rawValue;
+  }
+
+  return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const getDuration = (checkIn: unknown, checkOut: unknown) => {
+  if (!checkIn) {
+    return '-';
+  }
+
+  if (!checkOut) {
+    return 'In Progress';
+  }
+
+  const start = new Date(String(checkIn)).getTime();
+  const end = new Date(String(checkOut)).getTime();
+
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+    return '-';
+  }
+
+  const totalMinutes = Math.round((end - start) / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return `${hours}h ${minutes}m`;
+};
+
+const normalizeStatus = (status: unknown): AttendanceRecord['status'] => {
+  const normalized = typeof status === 'string' ? status.toLowerCase() : '';
+
+  if (normalized === 'late') {
+    return 'Late';
+  }
+
+  if (normalized === 'absent') {
+    return 'Absent';
+  }
+
+  return 'Present';
+};
+
+const isToday = (value: string) => {
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+  return parsed.toDateString() === today.toDateString();
+};
+
+const mapAttendanceRecord = (item: any): AttendanceRecord => {
+  const checkInRaw = item.check_in_time ?? item.check_in;
+  const checkOutRaw = item.check_out_time ?? item.check_out;
+
+  return {
+    id: String(item.id ?? `${item.user_id ?? 'attendance'}-${item.shift_id ?? 'shift'}`),
+    shiftId: String(item.shift_id ?? ''),
+    date: String(item.date ?? ''),
+    name: item.user_name || item.name || 'Worker',
+    checkIn: formatAttendanceTime(checkInRaw),
+    checkOut: formatAttendanceTime(checkOutRaw),
+    status: normalizeStatus(item.status),
+    duration: item.duration || getDuration(checkInRaw, checkOutRaw),
+  };
+};
 
 
 export default function AttendanceScreen() {
@@ -41,6 +135,7 @@ export default function AttendanceScreen() {
 
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<'checkin' | 'checkout' | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -52,21 +147,12 @@ export default function AttendanceScreen() {
         const res = await apiFetchWithFallback('/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
-        const data = await res.json();
+        const data = await readApiJson<ApiListResponse<any>>(res);
 
-        if (data.status === 'success') {
-          // data.data should be the list of attendance records from the backend
-          const rawAttendance = data.data || [];
-          const mapped = rawAttendance.map((item: any) => ({
-            id: item.id,
-            name: item.user_name || item.name || 'Worker',
-            checkIn: item.check_in_time || item.check_in || '-',
-            checkOut: item.check_out_time || item.check_out || '-',
-            status: (item.status?.charAt(0).toUpperCase() + item.status?.slice(1)) || 'Present',
-            duration: item.duration || '-'
-          }));
-          setAttendance(mapped);
+        if (res.ok && data?.status === 'success') {
+          setAttendance((data.data || []).map(mapAttendanceRecord));
         }
+
       } catch (err) {
         console.error('Failed to fetch attendance', err);
       } finally {
@@ -84,17 +170,45 @@ export default function AttendanceScreen() {
   };
 
   const handleCheckAction = async (type: 'checkin' | 'checkout') => {
-    if (!globalAuthToken) return;
+    if (!globalAuthToken || actionLoading) return;
+
+    setActionLoading(type);
     try {
-      // First, try to get the latest shift to check into
       const shiftRes = await apiFetchWithFallback('/api/shifts', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
-      const shiftData = await shiftRes.json();
-      const latestShift = shiftData.data?.[0];
+      const shiftData = await readApiJson<ApiListResponse<ShiftRecord>>(shiftRes);
 
-      if (!latestShift && type === 'checkin') {
-        alert('No active shifts available to check into.');
+      if (!shiftRes.ok || shiftData?.status !== 'success') {
+        Alert.alert(
+          'Shift Error',
+          getApiErrorMessage(
+            shiftData,
+            shiftRes.status >= 500
+              ? 'Unable to load shifts. Please sign in again if your session has expired.'
+              : 'Unable to load shifts.'
+          )
+        );
+        return;
+      }
+
+      const assignedShifts = shiftData.data || [];
+      const activeAttendance = attendance.find((record) => record.shiftId && record.checkOut === '-' && isToday(record.date));
+
+      if (type === 'checkout' && !activeAttendance) {
+        Alert.alert('No Active Check-In', 'Please check in before checking out.');
+        return;
+      }
+
+      if (type === 'checkin' && activeAttendance) {
+        Alert.alert('Already Checked In', 'Please check out from your active shift before checking in again.');
+        return;
+      }
+
+      const selectedShiftId = type === 'checkout' ? activeAttendance?.shiftId : assignedShifts[0]?.id;
+
+      if (!selectedShiftId) {
+        Alert.alert('No Assigned Shift', 'No assigned shifts are available for this action.');
         return;
       }
 
@@ -104,32 +218,32 @@ export default function AttendanceScreen() {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ shift_id: latestShift?.id || 'manual' })
+        body: JSON.stringify({ shift_id: selectedShiftId })
       });
+      const data = await readApiJson<{ status?: string; error?: string; message?: string }>(res);
 
-      if (res.ok) {
-        alert(`Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
-        // Refresh data
+      if (res.ok && data?.status === 'success') {
+        Alert.alert('Success', `Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
         const refreshRes = await apiFetchWithFallback('/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
-        const refreshData = await refreshRes.json();
-        if (refreshData.status === 'success') {
-          setAttendance(refreshData.data.map((item: any) => ({
-            id: item.id,
-            name: item.user_name || item.name || 'Worker',
-            checkIn: item.check_in_time || item.check_in || '-',
-            checkOut: item.check_out_time || item.check_out || '-',
-            status: (item.status?.charAt(0).toUpperCase() + item.status?.slice(1)) || 'Present',
-            duration: item.duration || '-'
-          })));
+        const refreshData = await readApiJson<ApiListResponse<any>>(refreshRes);
+        if (refreshRes.ok && refreshData?.status === 'success') {
+          setAttendance((refreshData.data || []).map(mapAttendanceRecord));
         }
       } else {
-        const errorData = await res.json();
-        alert(errorData.error || `Failed to ${type}`);
+        Alert.alert(
+          'Attendance Error',
+          getApiErrorMessage(data, `Failed to ${type === 'checkin' ? 'check in' : 'check out'}.`)
+        );
       }
-    } catch {
-      alert('Connection error');
+    } catch (error) {
+      Alert.alert(
+        'Connection Error',
+        error instanceof Error ? error.message : 'Unable to reach the server.'
+      );
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -216,6 +330,7 @@ export default function AttendanceScreen() {
         {selectedRole.key === 'worker' ? (
           <View style={styles.checkRow}>
             <Pressable
+              disabled={actionLoading !== null}
               onPress={() => handleCheckAction('checkin')}
               style={({ pressed }) => [
                 styles.checkButton,
@@ -225,10 +340,13 @@ export default function AttendanceScreen() {
               <View style={[styles.checkIconWrap, { backgroundColor: palette.success + '26' }]}>
                 <MaterialIcons name="login" size={16} color={palette.success} />
               </View>
-              <ThemedText style={{ color: palette.success, fontSize: 13, fontWeight: '800' }}>Check In</ThemedText>
+              <ThemedText style={{ color: palette.success, fontSize: 13, fontWeight: '800' }}>
+                {actionLoading === 'checkin' ? 'Checking In...' : 'Check In'}
+              </ThemedText>
             </Pressable>
 
             <Pressable
+              disabled={actionLoading !== null}
               onPress={() => handleCheckAction('checkout')}
               style={({ pressed }) => [
                 styles.checkButton,
@@ -238,7 +356,9 @@ export default function AttendanceScreen() {
               <View style={[styles.checkIconWrap, { backgroundColor: palette.danger + '26' }]}>
                 <MaterialIcons name="logout" size={16} color={palette.danger} />
               </View>
-              <ThemedText style={{ color: palette.danger, fontSize: 13, fontWeight: '800' }}>Check Out</ThemedText>
+              <ThemedText style={{ color: palette.danger, fontSize: 13, fontWeight: '800' }}>
+                {actionLoading === 'checkout' ? 'Checking Out...' : 'Check Out'}
+              </ThemedText>
             </Pressable>
           </View>
         ) : null}

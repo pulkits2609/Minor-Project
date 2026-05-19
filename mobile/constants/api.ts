@@ -21,6 +21,41 @@ const toAbsoluteUrl = (baseUrl: string, path: string) => {
   return `${baseUrl}${normalizedPath}`;
 };
 
+type ApiErrorShape = {
+  error?: unknown;
+  message?: unknown;
+};
+
+export async function readApiJson<T = unknown>(response: Response): Promise<T | null> {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+export function getApiErrorMessage(data: unknown, fallback: string) {
+  if (data && typeof data === 'object') {
+    const { error, message } = data as ApiErrorShape;
+
+    if (typeof error === 'string' && error.trim()) {
+      return error;
+    }
+
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
+
 export async function apiFetchWithFallback(
   path: string,
   init?: RequestInit,
@@ -36,13 +71,14 @@ export async function apiFetchWithFallback(
 
       try {
         const response = await fetch(url, init);
+        const contentType = response.headers.get('content-type') ?? '';
 
-        // If route is missing, try the same path on the next base URL.
-        if (response.status === 404) {
+        // HTML 404s usually mean the route is missing on that host. JSON 404s are
+        // valid API responses, such as "User not found" from /auth/login.
+        if (response.status === 404 && contentType.includes('text/html')) {
           continue;
         }
 
-        const contentType = response.headers.get('content-type') ?? '';
         if (contentType.includes('text/html')) {
           lastHtmlResponse = response;
           continue;
