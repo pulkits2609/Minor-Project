@@ -6,6 +6,11 @@ const API_BASE_URL =
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
+    if (body && body.password != null && typeof body.password !== "string") {
+      body.password = String(body.password);
+    }
+
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -17,7 +22,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json(
       { message: "Unable to connect to authentication server" },
-      { status: 502 }
+      { status: 502 },
     );
   }
 }
