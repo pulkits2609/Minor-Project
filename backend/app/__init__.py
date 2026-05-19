@@ -13,19 +13,20 @@ from app.routes.users import users_bp
 from app.routes.incidents import incidents_bp
 
 
-def create_app():
+def create_app(config_class=Config):
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(config_class)
 
     db.init_app(app)
     jwt.init_app(app)
     CORS(app)
 
-    database_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if database_uri.startswith("sqlite"):
+    if not app.config.get("SQLALCHEMY_DATABASE_URI"):
+        raise RuntimeError("DATABASE_URL is not set")
+
+    if app.config.get("AUTO_CREATE_TABLES", True):
         with app.app_context():
             import_module("app.models")
-
             db.create_all()
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
