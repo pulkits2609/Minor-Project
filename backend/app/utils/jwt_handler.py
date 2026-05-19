@@ -27,7 +27,7 @@ def generate_token(user):
     }
 
     token = create_access_token(
-        identity=user.id,
+        identity=str(user.id),
         additional_claims=additional_claims,
         expires_delta=JWT_EXPIRES
     )
@@ -68,24 +68,23 @@ def jwt_required_custom(roles=None):
 
             try:
                 verify_jwt_in_request()
-
-                user_data = {
-                    "user_id": get_jwt_identity(),
-                    "role": get_jwt().get("role"),
-                    "username": get_jwt().get("username")
-                }
-
-                # Role check
-                if roles and user_data["role"] not in roles:
-                    return jsonify({"error": "Unauthorized"}), 403
-
-                # Attach user
-                request.user = user_data
-
-                return fn(*args, **kwargs)
-
             except Exception as e:
                 return jsonify({"error": str(e)}), 401
+
+            user_data = {
+                "user_id": get_jwt_identity(),
+                "role": get_jwt().get("role"),
+                "username": get_jwt().get("username")
+            }
+
+            # Role check
+            if roles and user_data["role"] not in roles:
+                return jsonify({"error": "Unauthorized"}), 403
+
+            # Attach user
+            request.user = user_data
+
+            return fn(*args, **kwargs)
 
         return wrapper
 

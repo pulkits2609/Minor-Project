@@ -43,7 +43,7 @@ def register_user(data):
 
     return {
         "message": "User registered successfully",
-        "user_id": user.id
+        "user_id": str(user.id)
     }, 201
 
 
@@ -75,7 +75,7 @@ def login_user(data):
         "message": "Login successful",
         "access_token": token,
         "user": {
-            "id": user.id,
+            "id": str(user.id),
             "name": user.name,
             "email": user.email,
             "role": user.role

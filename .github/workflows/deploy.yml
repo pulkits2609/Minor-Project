@@ -39,10 +39,11 @@ jobs:
 
             echo "⚙️ Updating environment variables..."
             cat > .env << EOL
-                DATABASE_URL=${{ secrets.DATABASE_URL }}
-                SECRET_KEY=${{ secrets.SECRET_KEY }}
-                JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-            EOL
+DATABASE_URL=${{ secrets.DATABASE_URL }}
+SECRET_KEY=${{ secrets.SECRET_KEY }}
+JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+AUTO_CREATE_TABLES=true
+EOL
 
             echo "🐍 Activating virtual environment..."
             source venv/bin/activate
