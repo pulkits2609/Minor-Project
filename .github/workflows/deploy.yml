@@ -38,7 +38,7 @@ jobs:
             cd backend
 
             echo "⚙️ Updating environment variables..."
-            cat > .env << EOL
+            cat > .env << 'EOL'
 DATABASE_URL=${{ secrets.DATABASE_URL }}
 SECRET_KEY=${{ secrets.SECRET_KEY }}
 JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
