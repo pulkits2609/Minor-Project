@@ -19,7 +19,7 @@ import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
 import { normalizeRoleForApp } from '@/constants/roles';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, getApiErrorMessage, readApiJson } from '@/constants/api';
 
 
 export default function LoginScreen() {
@@ -57,10 +57,20 @@ export default function LoginScreen() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data = await readApiJson<{
+        access_token?: string;
+        error?: string;
+        message?: string;
+        user?: { role?: string | null };
+      }>(response);
 
       if (!response.ok) {
-        Alert.alert('Login Failed', data.error || 'Invalid credentials');
+        Alert.alert('Login Failed', getApiErrorMessage(data, 'Invalid credentials'));
+        return;
+      }
+
+      if (!data?.access_token) {
+        Alert.alert('Login Failed', 'Login response did not include an access token.');
         return;
       }
 
