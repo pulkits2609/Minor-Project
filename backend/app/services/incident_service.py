@@ -54,6 +54,14 @@ def report_incident(reporter_id, data):
     )
     db.session.add(incident)
     db.session.commit()
+    # Auto-alert for critical/high severity incidents
+    if severity in ("critical", "high"):
+        from app.services.alert_service import create_emergency_alert
+        alert_msg = f"{'🚨 CRITICAL' if severity == 'critical' else '⚠️ HIGH'} incident reported at {location}: {description}"
+        try:
+            create_emergency_alert(alert_msg, severity=severity)
+        except Exception:
+            pass  # Don't fail the incident report if alert creation fails
     return str(incident.id)
 
 def get_all_incidents():

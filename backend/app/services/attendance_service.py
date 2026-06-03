@@ -38,6 +38,14 @@ def check_in(user_id, shift_id):
     if not is_assigned(user_id, shift_id):
         return False, "Not assigned to this shift"
 
+    existing = Attendance.query.filter_by(
+        user_id=_coerce_uuid(user_id),
+        shift_id=_coerce_uuid(shift_id),
+        date=date.today(),
+    ).first()
+    if existing:
+        return False, "Already checked in for this shift today"
+
     record = Attendance(
         user_id=_coerce_uuid(user_id),
         shift_id=_coerce_uuid(shift_id),
@@ -62,7 +70,11 @@ def check_out(user_id, shift_id):
     if not record:
         return False
 
-    record.check_out = datetime.utcnow()
+    now = datetime.utcnow()
+    if record.check_in and now <= record.check_in:
+        return False
+
+    record.check_out = now
 
     db.session.commit()
     return True

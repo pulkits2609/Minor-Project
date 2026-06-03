@@ -9,6 +9,7 @@ class Shift(db.Model):
     start_time = db.Column(db.Text, nullable=False)
     end_time = db.Column(db.Text, nullable=False)
     location = db.Column(db.Text)
+    status = db.Column(db.Text, default="scheduled")  # scheduled, active, completed, cancelled
     created_by = db.Column(db.UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
 
 

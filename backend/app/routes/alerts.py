@@ -56,6 +56,9 @@ def emergency_alert():
     if "error" in token_data:
         return jsonify({"error": token_data["error"]}), 401
 
+    if token_data["role"] not in ["supervisor", "safety_officer", "admin", "authority"]:
+        return jsonify({"error": "Unauthorized - Only supervisors and above can broadcast emergency alerts"}), 403
+
     data = request.get_json()
     message = data.get("message")
 

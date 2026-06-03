@@ -37,7 +37,7 @@ def checkout():
 
     success = check_out(token["user_id"], shift_id)
     if not success:
-        return {"error": "No check-in record found for this shift"}, 400
+        return {"error": "No check-in record found for this shift or check-out time is invalid"}, 400
 
     return {"status": "success"}
 

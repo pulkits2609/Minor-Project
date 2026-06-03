@@ -15,6 +15,7 @@ def _shift_to_dict(shift):
         "start_time": shift.start_time,
         "end_time": shift.end_time,
         "location": shift.location,
+        "status": shift.status,
         "created_by": str(shift.created_by),
     }
 

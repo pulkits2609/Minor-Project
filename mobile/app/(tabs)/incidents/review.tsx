@@ -10,7 +10,7 @@ import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 import { globalAuthToken } from '@/constants/auth';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, getApiErrorMessage, readApiJson } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 type ReviewStatus = 'pending-verification' | 'assigned' | 'resolved';
@@ -39,8 +39,8 @@ export default function IncidentReviewScreen() {
       const res = await apiFetchWithFallback('/api/incidents', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
-      const data = await res.json();
-      if (data.status === 'success') {
+      const data = await readApiJson<{ status?: string; data?: any[] }>(res);
+      if (data?.status === 'success') {
         setIncidents(data.data || []);
       }
     } catch (err) {
@@ -59,11 +59,13 @@ export default function IncidentReviewScreen() {
         },
         body: JSON.stringify({ status, notes: verificationNotes }),
       });
-      const data = await res.json();
-      if (data.status === 'success') {
+      const data = await readApiJson<{ status?: string; error?: string; message?: string }>(res);
+      if (data?.status === 'success') {
         Alert.alert('Success', `Incident status updated to ${status}`);
         fetchIncidents();
         setVerificationNotes('');
+      } else if (!res.ok) {
+        Alert.alert('Error', getApiErrorMessage(data, 'Failed to update status'));
       }
     } catch {
       Alert.alert('Error', 'Failed to update status');
@@ -71,10 +73,9 @@ export default function IncidentReviewScreen() {
   };
 
   const filteredIncidents = incidents.filter((incident) => incident.status === filterStatus);
-  const current =
-    selectedIncident !== null
-      ? incidents.find((incident) => incident.id === selectedIncident)
-      : filteredIncidents[0];
+  const current = selectedIncident !== null
+    ? incidents.find((incident) => incident.id === selectedIncident)
+    : null;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>

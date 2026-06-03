@@ -76,6 +76,10 @@ def change_status(id):
     if not status:
         return jsonify({"error": "Status required"}), 400
 
+    ALLOWED_INCIDENT_STATUSES = {"active", "pending-verification", "assigned", "resolved"}
+    if status not in ALLOWED_INCIDENT_STATUSES:
+        return jsonify({"error": f"Invalid status. Allowed: {', '.join(sorted(ALLOWED_INCIDENT_STATUSES))}"}), 400
+
     success = update_incident_status(id, status)
     return jsonify({
         "status": "success" if success else "failed"

@@ -21,6 +21,9 @@ def _normalize_incident_status(status):
 
 # WORKER DASHBOARD
 def get_worker_dashboard(user_id):
+    from app.models.attendance import Attendance
+    from app.models.alert import Alert
+    from datetime import date
     worker_id = _coerce_uuid(user_id)
     tasks = (
         Task.query
@@ -28,7 +31,6 @@ def get_worker_dashboard(user_id):
         .order_by(Task.created_at.desc())
         .all()
     )
-
     task_list = [
         {
             "id": str(t.id),
@@ -38,30 +40,60 @@ def get_worker_dashboard(user_id):
         }
         for t in tasks
     ]
-
+    # Real attendance data
+    today_attendance = (
+        Attendance.query
+        .filter(Attendance.user_id == worker_id, Attendance.date == date.today())
+        .first()
+    )
+    if today_attendance and today_attendance.check_in:
+        shift_status = "checked_out" if today_attendance.check_out else "on_shift"
+        check_in_time = today_attendance.check_in.strftime("%I:%M %p")
+    else:
+        shift_status = "off_shift"
+        check_in_time = None
+    # Real alerts
+    alerts_list = (
+        Alert.query
+        .filter(Alert.user_id == worker_id, Alert.is_read == False)
+        .order_by(Alert.created_at.desc())
+        .limit(10)
+        .all()
+    )
     return {
         "current_status": {
-            "shift_status": "on_shift",  # TODO: from attendance
-            "check_in_time": "08:15 AM",
-            "zone": "Zone C"
+            "shift_status": shift_status,
+            "check_in_time": check_in_time,
+            "zone": today_attendance.shift_id if today_attendance else None  # TODO: get zone from shift
         },
         "tasks": task_list,
-        "alerts": []  # TODO: connect alerts table
+        "alerts": [
+            {
+                "id": str(a.id),
+                "type": a.type,
+                "message": a.message,
+                "severity": a.severity,
+                "created_at": a.created_at,
+            }
+            for a in alerts_list
+        ]
     }
 
 # SUPERVISOR DASHBOARD
 def get_supervisor_dashboard():
+    from app.models.attendance import Attendance
+    from datetime import date
     total_workers = User.query.filter_by(role="worker").count()
     total_tasks = Task.query.count()
     open_incidents_list = Incident.query.filter(Incident.status.in_(OPEN_INCIDENT_STATUSES)).all()
-
+    today_present = Attendance.query.filter(Attendance.date == date.today()).distinct(Attendance.user_id).count()
     return {
         "team_members": [],  # TODO: fetch workers
         "stats": {
             "total_team": total_workers,
             "active_tasks": total_tasks,
             "open_incidents": len(open_incidents_list),
-            "attendance": "0/0"
+            "attendance": f"{today_present}/{total_workers}"
         },
         "incidents": [
             {

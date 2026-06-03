@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator, Platform, Alert } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator, Platform, Alert, Modal, FlatList } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { globalAuthToken } from '@/constants/auth';
@@ -134,6 +134,9 @@ export default function AttendanceScreen() {
   const selectedDate = date.toISOString().split('T')[0];
 
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [shifts, setShifts] = useState<ShiftRecord[]>([]);
+  const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
+  const [showShiftModal, setShowShiftModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<'checkin' | 'checkout' | null>(null);
 
@@ -144,15 +147,22 @@ export default function AttendanceScreen() {
         return;
       }
       try {
-        const res = await apiFetchWithFallback('/api/attendance', {
-          headers: { Authorization: `Bearer ${globalAuthToken}` },
-        });
-        const data = await readApiJson<ApiListResponse<any>>(res);
-
-        if (res.ok && data?.status === 'success') {
-          setAttendance((data.data || []).map(mapAttendanceRecord));
+        const [attRes, shiftRes] = await Promise.all([
+          apiFetchWithFallback('/api/attendance', {
+            headers: { Authorization: `Bearer ${globalAuthToken}` },
+          }),
+          apiFetchWithFallback('/api/shifts', {
+            headers: { Authorization: `Bearer ${globalAuthToken}` },
+          }),
+        ]);
+        const attData = await readApiJson<ApiListResponse<any>>(attRes);
+        if (attRes.ok && attData?.status === 'success') {
+          setAttendance((attData.data || []).map(mapAttendanceRecord));
         }
-
+        const shiftData = await readApiJson<ApiListResponse<ShiftRecord>>(shiftRes);
+        if (shiftRes.ok && shiftData?.status === 'success') {
+          setShifts(shiftData.data || []);
+        }
       } catch (err) {
         console.error('Failed to fetch attendance', err);
       } finally {
@@ -162,11 +172,18 @@ export default function AttendanceScreen() {
     fetchData();
   }, []);
 
+  const filteredAttendance = attendance.filter((item) => {
+    if (!item.date) return true;
+    // Compare date strings (YYYY-MM-DD)
+    const recordDate = new Date(item.date).toISOString().split('T')[0];
+    return recordDate === selectedDate;
+  });
+
   const stats = {
-    present: attendance.filter((item) => item.status === 'Present' || item.status === 'Late').length,
-    late: attendance.filter((item) => item.status === 'Late').length,
-    absent: attendance.filter((item) => item.status === 'Absent').length,
-    total: attendance.length,
+    present: filteredAttendance.filter((item) => item.status === 'Present' || item.status === 'Late').length,
+    late: filteredAttendance.filter((item) => item.status === 'Late').length,
+    absent: filteredAttendance.filter((item) => item.status === 'Absent').length,
+    total: filteredAttendance.length,
   };
 
   const handleCheckAction = async (type: 'checkin' | 'checkout') => {
@@ -174,41 +191,43 @@ export default function AttendanceScreen() {
 
     setActionLoading(type);
     try {
-      const shiftRes = await apiFetchWithFallback('/api/shifts', {
-        headers: { Authorization: `Bearer ${globalAuthToken}` },
-      });
-      const shiftData = await readApiJson<ApiListResponse<ShiftRecord>>(shiftRes);
-
-      if (!shiftRes.ok || shiftData?.status !== 'success') {
-        Alert.alert(
-          'Shift Error',
-          getApiErrorMessage(
-            shiftData,
-            shiftRes.status >= 500
-              ? 'Unable to load shifts. Please sign in again if your session has expired.'
-              : 'Unable to load shifts.'
-          )
-        );
-        return;
-      }
-
-      const assignedShifts = shiftData.data || [];
       const activeAttendance = attendance.find((record) => record.shiftId && record.checkOut === '-' && isToday(record.date));
 
       if (type === 'checkout' && !activeAttendance) {
         Alert.alert('No Active Check-In', 'Please check in before checking out.');
+        setActionLoading(null);
         return;
       }
 
       if (type === 'checkin' && activeAttendance) {
         Alert.alert('Already Checked In', 'Please check out from your active shift before checking in again.');
+        setActionLoading(null);
         return;
       }
 
-      const selectedShiftId = type === 'checkout' ? activeAttendance?.shiftId : assignedShifts[0]?.id;
+      if (type === 'checkin' && !selectedShiftId) {
+        Alert.alert('No Shift Selected', 'Please select a shift to check in for.');
+        setActionLoading(null);
+        return;
+      }
 
-      if (!selectedShiftId) {
+      if (type === 'checkout' && activeAttendance) {
+        const checkInTime = new Date(String(activeAttendance.checkIn));
+        if (checkInTime instanceof Date && !isNaN(checkInTime.getTime())) {
+          const now = new Date();
+          if (now <= checkInTime) {
+            Alert.alert('Invalid Check-Out', 'Check-out time must be after check-in time.');
+            setActionLoading(null);
+            return;
+          }
+        }
+      }
+
+      const shiftId = type === 'checkout' ? activeAttendance?.shiftId : selectedShiftId;
+
+      if (!shiftId) {
         Alert.alert('No Assigned Shift', 'No assigned shifts are available for this action.');
+        setActionLoading(null);
         return;
       }
 
@@ -218,12 +237,13 @@ export default function AttendanceScreen() {
           'Authorization': `Bearer ${globalAuthToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ shift_id: selectedShiftId })
+        body: JSON.stringify({ shift_id: shiftId })
       });
       const data = await readApiJson<{ status?: string; error?: string; message?: string }>(res);
 
       if (res.ok && data?.status === 'success') {
         Alert.alert('Success', `Successfully ${type === 'checkin' ? 'checked in' : 'checked out'}!`);
+        setSelectedShiftId(null);
         const refreshRes = await apiFetchWithFallback('/api/attendance', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
@@ -328,7 +348,74 @@ export default function AttendanceScreen() {
         </View>
 
         {selectedRole.key === 'worker' ? (
-          <View style={styles.checkRow}>
+          <>
+            <View style={styles.fieldGroup}>
+              <ThemedText style={styles.label}>Select Shift</ThemedText>
+              <Pressable
+                onPress={() => setShowShiftModal(true)}
+                style={[styles.dateRow, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
+                <MaterialIcons name="work" size={18} color={palette.tint} />
+                {selectedShiftId ? (
+                  (() => {
+                    const shift = shifts.find((s) => s.id === selectedShiftId);
+                    return (
+                      <ThemedText style={{ color: palette.text, fontSize: 15, flex: 1 }} numberOfLines={1}>
+                        {shift?.location || 'Shift'} {shift?.start_time ? `(${new Date(shift.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${shift.end_time ? new Date(shift.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''})` : ''}
+                      </ThemedText>
+                    );
+                  })()
+                ) : (
+                  <ThemedText style={{ color: palette.muted, fontSize: 15, flex: 1 }}>Tap to select a shift...</ThemedText>
+                )}
+                <MaterialIcons name="arrow-drop-down" size={22} color={palette.muted} />
+              </Pressable>
+            </View>
+
+            <Modal visible={showShiftModal} transparent animationType="fade" onRequestClose={() => setShowShiftModal(false)}>
+              <Pressable style={styles.modalOverlay} onPress={() => setShowShiftModal(false)}>
+                <View style={[styles.modalContent, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
+                  <ThemedText type="subtitle" style={{ marginBottom: 12, paddingHorizontal: 4 }}>Select a Shift</ThemedText>
+                  {shifts.length === 0 ? (
+                    <ThemedText style={{ color: palette.muted, padding: 16, textAlign: 'center' }}>No assigned shifts available</ThemedText>
+                  ) : (
+                    <FlatList
+                      data={shifts}
+                      keyExtractor={(item) => item.id}
+                      renderItem={({ item }) => {
+                        const selected = selectedShiftId === item.id;
+                        return (
+                          <Pressable
+                            onPress={() => {
+                              setSelectedShiftId(item.id);
+                              setShowShiftModal(false);
+                            }}
+                            style={[
+                              styles.shiftOption,
+                              {
+                                backgroundColor: selected ? palette.tint + '22' : 'transparent',
+                                borderColor: selected ? palette.tint : 'transparent',
+                              },
+                            ]}>
+                            <View style={{ flex: 1 }}>
+                              <ThemedText style={{ fontSize: 15, fontWeight: '700' }}>{item.location || 'Unknown Location'}</ThemedText>
+                              {item.start_time ? (
+                                <ThemedText style={{ color: palette.muted, fontSize: 13, marginTop: 2 }}>
+                                  {new Date(item.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  {item.end_time ? ` - ${new Date(item.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                                </ThemedText>
+                              ) : null}
+                            </View>
+                            {selected ? <MaterialIcons name="check-circle" size={22} color={palette.tint} /> : null}
+                          </Pressable>
+                        );
+                      }}
+                    />
+                  )}
+                </View>
+              </Pressable>
+            </Modal>
+
+            <View style={styles.checkRow}>
             <Pressable
               disabled={actionLoading !== null}
               onPress={() => handleCheckAction('checkin')}
@@ -361,10 +448,11 @@ export default function AttendanceScreen() {
               </ThemedText>
             </Pressable>
           </View>
+          </>
         ) : null}
 
         <View style={styles.recordList}>
-          {attendance.map((person) => (
+          {filteredAttendance.map((person) => (
             <View key={person.id} style={[styles.recordCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
               <View style={styles.recordHeading}>
                 <View>
@@ -391,15 +479,22 @@ export default function AttendanceScreen() {
                 </View>
               </View>
             </View>
-          ))}
+          ))}\
         </View>
+
+        {filteredAttendance.length === 0 ? (
+          <View style={{ marginTop: 18, borderWidth: 1, borderRadius: 22, padding: 28, alignItems: 'center', justifyContent: 'center', borderColor: palette.border, backgroundColor: palette.surfaceElevated }}>
+            <MaterialIcons name="event-busy" size={32} color={palette.muted} />
+            <ThemedText style={{ color: palette.muted, marginTop: 10, fontSize: 14 }}>No attendance records for {selectedDate}</ThemedText>
+          </View>
+        ) : null}
 
         <View style={[styles.summaryCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
           <ThemedText type="subtitle">Daily Summary</ThemedText>
           <View style={styles.summaryGrid}>
             {[
-              { label: 'Average Check In Time', value: attendance.length > 0 ? attendance[0].checkIn : '-' },
-              { label: 'Average Check Out Time', value: attendance.find(a => a.checkOut !== '-')?.checkOut || '-' },
+              { label: 'Average Check In Time', value: filteredAttendance.length > 0 ? filteredAttendance[0].checkIn : '-' },
+              { label: 'Average Check Out Time', value: filteredAttendance.find(a => a.checkOut !== '-')?.checkOut || '-' },
               {
                 label: 'Attendance Rate',
                 value: stats.total > 0 ? `${Math.round((stats.present / stats.total) * 100)}%` : '0%',
@@ -568,6 +663,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 18,
     padding: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 32,
+  },
+  modalContent: {
+    width: '100%',
+    maxHeight: '60%',
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16,
+  },
+  shiftOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    marginVertical: 4,
+    borderWidth: 1,
   },
   pressed: {
     transform: [{ scale: 0.98 }],
