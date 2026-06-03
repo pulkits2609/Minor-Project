@@ -13,6 +13,7 @@ import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 
 import { globalAuthToken } from '@/constants/auth';
+import { apiFetchWithFallback, readApiJson } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 type FilterStatus = 'all' | 'pending-verification' | 'assigned' | 'escalated' | 'resolved';
@@ -40,13 +41,14 @@ export default function IncidentsScreen() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
 
   useEffect(() => {
     async function fetchIncidents() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info/api/incidents', {
+        const res = await apiFetchWithFallback('/api/incidents', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 
@@ -56,8 +58,8 @@ export default function IncidentsScreen() {
           return;
         }
 
-        const data = await res.json();
-        if (data.status === 'success') {
+        const data = await readApiJson<{ status?: string; data?: any[] }>(res);
+        if (data?.status === 'success') {
           const mappedIncidents = (data.data || []).map((t: any) => ({
             id: t.id,
             code: String(t.id).substring(0, 8).toUpperCase(),
@@ -72,6 +74,8 @@ export default function IncidentsScreen() {
         }
       } catch (err) {
         console.error('Failed to fetch incidents', err);
+      } finally {
+        setLoading(false);
       }
     }
     fetchIncidents();
@@ -180,6 +184,12 @@ export default function IncidentsScreen() {
             })}
           </View>
         </View>
+
+        {loading ? (
+          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+            <ThemedText style={{ color: palette.muted, fontSize: 14 }}>Loading incidents...</ThemedText>
+          </View>
+        ) : null}
 
         <View style={styles.statsGrid}>
           {[

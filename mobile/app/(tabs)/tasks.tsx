@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, getApiErrorMessage, readApiJson } from '@/constants/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
@@ -119,8 +119,8 @@ export default function TasksScreen() {
 
         const contentType = res.headers.get('content-type');
         if (res.ok && contentType && contentType.includes('application/json')) {
-          const data = await res.json();
-          if (data.status === 'success') {
+          const data = await readApiJson<{ status?: string; data?: any[] }>(res);
+          if (data?.status === 'success') {
             const rawTasks = data.data || [];
             const mappedTasks = rawTasks.map(mapTask);
             setTasks(mappedTasks);
@@ -141,8 +141,8 @@ export default function TasksScreen() {
       const res = await apiFetchWithFallback('/api/users/workers', {
         headers: { Authorization: `Bearer ${globalAuthToken}` },
       });
-      const data = await res.json();
-      if (data.status === 'success') {
+      const data = await readApiJson<{ status?: string; data?: any[] }>(res);
+      if (data?.status === 'success') {
         setWorkers(data.data || []);
       }
     } catch (err) {
@@ -171,8 +171,8 @@ export default function TasksScreen() {
         })
       });
 
-      const data = await res.json();
-      if (data.status === 'success') {
+      const data = await readApiJson<{ status?: string; data?: any[]; error?: string; message?: string }>(res);
+      if (data?.status === 'success') {
         Alert.alert('Success', 'Task assigned successfully!');
         setIsCreating(false);
         setNewTaskTitle('');
@@ -182,12 +182,12 @@ export default function TasksScreen() {
         const refreshRes = await apiFetchWithFallback('/api/tasks', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
-        const refreshData = await refreshRes.json();
-        if (refreshData.status === 'success') {
+        const refreshData = await readApiJson<{ status?: string; data?: any[] }>(refreshRes);
+        if (refreshData?.status === 'success') {
           setTasks((refreshData.data || []).map(mapTask));
         }
       } else {
-        Alert.alert('Error', data.error || 'Failed to create task');
+        Alert.alert('Error', getApiErrorMessage(data, 'Failed to create task'));
       }
     } catch {
       Alert.alert('Error', 'Connection failed');
@@ -213,7 +213,7 @@ export default function TasksScreen() {
         })
       });
 
-      const data = await res.json();
+      const data = await readApiJson<{ status?: string; error?: string; message?: string }>(res);
       if (res.ok) {
         // Optimistically update the UI or re-fetch
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: nextStatus.mobile } : t));

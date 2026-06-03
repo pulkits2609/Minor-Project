@@ -12,6 +12,7 @@ import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 
 import { globalAuthToken } from '@/constants/auth';
+import { apiFetchWithFallback, readApiJson } from '@/constants/api';
 
 type UserStatus = 'Active' | 'Suspended';
 type UserRole = 'Worker' | 'Supervisor' | 'Safety Officer' | 'Administrator';
@@ -42,13 +43,14 @@ export default function UsersScreen() {
   const [email, setEmail] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
 
   useEffect(() => {
     async function fetchUsers() {
       if (!globalAuthToken) return;
       try {
-        const res = await fetch('https://api.pulkitworks.info/api/users/workers', {
+        const res = await apiFetchWithFallback('/api/users/workers', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
 
@@ -58,8 +60,8 @@ export default function UsersScreen() {
           return;
         }
 
-        const data = await res.json();
-        if (data.status === 'success') {
+        const data = await readApiJson<{ status?: string; data?: any[] }>(res);
+        if (data?.status === 'success') {
           const mappedUsers = data.data.map((u: any) => ({
             id: u.id,
             name: u.name || 'Unknown',
@@ -72,13 +74,25 @@ export default function UsersScreen() {
         }
       } catch (err) {
         console.error('Failed to fetch users', err);
+      } finally {
+        setLoading(false);
       }
     }
     fetchUsers();
   }, []);
 
+  const filterRoleMap: Record<string, string> = {
+    'Worker': 'worker',
+    'Supervisor': 'supervisor',
+    'Safety Officer': 'safety_officer',
+    'Administrator': 'admin',
+  };
+
   const filteredUsers = useMemo(() => {
-    return filterRole === 'all' ? users : users.filter((user) => user.role === filterRole.toLowerCase() || user.role === filterRole);
+    return filterRole === 'all' ? users : users.filter((user) => {
+      const mapped = filterRoleMap[filterRole];
+      return user.role === mapped || user.role === filterRole;
+    });
   }, [filterRole, users]);
 
   const canCreate = selectedRole.key === 'admin' || selectedRole.key === 'authority';
@@ -141,6 +155,12 @@ export default function UsersScreen() {
                 <ThemedText style={{ color: palette.text, fontSize: 14, fontWeight: '800' }}>Create User</ThemedText>
               </Pressable>
             </View>
+          </View>
+        ) : null}
+
+        {loading ? (
+          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+            <ThemedText style={{ color: palette.muted, fontSize: 14 }}>Loading users...</ThemedText>
           </View>
         ) : null}
 

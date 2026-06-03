@@ -18,6 +18,7 @@ type ShiftRecord = {
   start_time: string;
   end_time: string;
   location: string;
+  status: string;
   created_by: string;
 };
 
@@ -351,8 +352,8 @@ export default function ShiftsScreen() {
                     {shift.start_time} - {shift.end_time}
                   </ThemedText>
                 </View>
-                <View style={[styles.badge, { backgroundColor: palette.tint + '22' }]}>
-                  <ThemedText style={{ color: palette.tint, fontSize: 10, fontWeight: '800' }}>ACTIVE</ThemedText>
+                <View style={[styles.badge, { backgroundColor: shiftBadgeColor(shift.status, palette) + '22' }]}>
+                  <ThemedText style={{ color: shiftBadgeColor(shift.status, palette), fontSize: 10, fontWeight: '800' }}>{(shift.status || 'scheduled').toUpperCase()}</ThemedText>
                 </View>
               </View>
 
@@ -426,6 +427,21 @@ export default function ShiftsScreen() {
 
     </SafeAreaView>
   );
+}
+
+type Palette = typeof Colors.dark;
+
+function shiftBadgeColor(status: string | undefined, palette: Palette) {
+  switch (status) {
+    case 'active':
+      return palette.success;
+    case 'completed':
+      return palette.muted;
+    case 'cancelled':
+      return palette.danger;
+    default: // 'scheduled'
+      return palette.tint;
+  }
 }
 
 const styles = StyleSheet.create({

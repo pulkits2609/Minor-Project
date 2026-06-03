@@ -24,6 +24,7 @@ const toAbsoluteUrl = (baseUrl: string, path: string) => {
 type ApiErrorShape = {
   error?: unknown;
   message?: unknown;
+  details?: unknown;
 };
 
 export async function readApiJson<T = unknown>(response: Response): Promise<T | null> {
@@ -42,14 +43,21 @@ export async function readApiJson<T = unknown>(response: Response): Promise<T | 
 
 export function getApiErrorMessage(data: unknown, fallback: string) {
   if (data && typeof data === 'object') {
-    const { error, message } = data as ApiErrorShape;
+    const { error, message, details } = data as ApiErrorShape;
+    let msg = '';
 
     if (typeof error === 'string' && error.trim()) {
-      return error;
+      msg = error;
+    } else if (typeof message === 'string' && message.trim()) {
+      msg = message;
     }
 
-    if (typeof message === 'string' && message.trim()) {
-      return message;
+    if (typeof details === 'string' && details.trim()) {
+      msg += `\n\nDetails:\n${details}`;
+    }
+
+    if (msg) {
+      return msg;
     }
   }
 

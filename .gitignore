@@ -2,6 +2,7 @@ venv/
 __pycache__/
 *.pdf
 .env
+.env.local
 *.pyc
 .idea/
 .vscode/

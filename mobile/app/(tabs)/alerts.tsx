@@ -9,7 +9,7 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, readApiJson } from '@/constants/api';
 
 
 import { globalAuthToken } from '@/constants/auth';
@@ -64,18 +64,22 @@ export default function AlertsScreen() {
 
         const contentType = res.headers.get('content-type');
         if (res.ok && contentType && contentType.includes('application/json')) {
-          const data = await res.json();
-          if (data.status === 'success') {
+          const data = await readApiJson<{ status?: string; data?: any[] }>(res);
+          if (data?.status === 'success') {
             const rawAlerts = data.data || [];
-            const mappedAlerts = rawAlerts.map((a: any) => ({
-              id: a.id,
-              title: a.title || 'System Alert',
-              message: a.message || '',
-              type: normalizeAlertType(a),
-              zone: a.zone || a.location || 'All zones',
-              time: a.created_at || new Date().toLocaleTimeString(),
-              action: a.action || (a.is_read ? 'Read' : 'Review'),
-            }));
+            const mappedAlerts = rawAlerts.map((a: any) => {
+              const msg = a.message || '';
+              const derivedTitle = a.title || (msg.length > 40 ? msg.substring(0, 40) + '…' : msg) || 'System Alert';
+              return {
+                id: a.id,
+                title: derivedTitle,
+                message: msg,
+                type: normalizeAlertType(a),
+                zone: a.zone || a.location || 'All zones',
+                time: a.created_at ? new Date(a.created_at).toLocaleString() : new Date().toLocaleTimeString(),
+                action: a.action || (a.is_read ? 'Read' : 'Review'),
+              };
+            });
             setAlerts(mappedAlerts);
           }
         } else {
@@ -269,7 +273,18 @@ export default function AlertsScreen() {
                 </Pressable>
 
                 <Pressable
-                  onPress={() => setDismissedAlerts((current) => [...current, alert.id])}
+                  onPress={async () => {
+                    setDismissedAlerts((current) => [...current, alert.id]);
+                    if (globalAuthToken) {
+                      try {
+                        await apiFetchWithFallback('/api/alerts/read', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${globalAuthToken}` },
+                          body: JSON.stringify({ alert_id: alert.id }),
+                        });
+                      } catch { /* silent */ }
+                    }
+                  }}
                   style={({ pressed }) => [styles.dismissButton, { backgroundColor: palette.surfaceElevated }, pressed && styles.pressed]}>
                   <MaterialIcons name="close" size={16} color={palette.muted} />
                 </Pressable>

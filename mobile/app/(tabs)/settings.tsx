@@ -35,6 +35,9 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [twoFactor, setTwoFactor] = useState(true);
+  const [taskUpdates, setTaskUpdates] = useState(true);
+  const [systemMaintenance, setSystemMaintenance] = useState(true);
+  const [weeklyReports, setWeeklyReports] = useState(true);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
@@ -151,9 +154,9 @@ export default function SettingsScreen() {
               {[
                 { label: 'Critical Alerts', desc: 'Immediate notification for critical safety alerts', value: notifications, setter: setNotifications },
                 { label: 'Incident Reports', desc: 'Notifications when incidents are reported', value: emailAlerts, setter: setEmailAlerts },
-                { label: 'Task Updates', desc: 'Updates on assigned tasks', value: true },
-                { label: 'System Maintenance', desc: 'Scheduled maintenance notifications', value: true },
-                { label: 'Weekly Reports', desc: 'Weekly summary reports', value: true },
+                { label: 'Task Updates', desc: 'Updates on assigned tasks', value: taskUpdates, setter: setTaskUpdates },
+                { label: 'System Maintenance', desc: 'Scheduled maintenance notifications', value: systemMaintenance, setter: setSystemMaintenance },
+                { label: 'Weekly Reports', desc: 'Weekly summary reports', value: weeklyReports, setter: setWeeklyReports },
                 { label: 'Email Notifications', desc: 'Receive notifications via email', value: emailAlerts, setter: setEmailAlerts },
               ].map((item) => (
                 <SettingRow

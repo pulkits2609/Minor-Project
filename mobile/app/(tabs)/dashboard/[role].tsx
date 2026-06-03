@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { globalAuthToken, globalUserRole, setGlobalAuthToken, setGlobalUserRole } from '@/constants/auth';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, readApiJson } from '@/constants/api';
 import { type MineOpsAlert, type MineOpsMetric, type MineOpsRoleKey, type MineOpsTone, homeMetrics as defaultMetrics, liveAlerts as defaultAlerts, roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
@@ -149,7 +149,9 @@ export default function RoleDashboardScreen() {
         }
 
         if (response.ok) {
-          const { data, role } = await response.json();
+          const parsed = await readApiJson<{ data?: any; role?: string }>(response);
+          const data = parsed?.data;
+          const role = parsed?.role;
           const newMetrics: MineOpsMetric[] = [];
 
           if (role === 'worker' && data) {
@@ -177,12 +179,15 @@ export default function RoleDashboardScreen() {
 
           // Map alerts if provided, otherwise keep default fallback
           if (data?.alerts && data.alerts.length > 0) {
-            setDynamicAlerts(data.alerts.map((a: any): MineOpsAlert => ({
-              title: a.title || 'Alert',
-              detail: a.detail || 'Notice',
-              tone: normalizeTone(a.tone),
-              icon: toIconName(a.icon)
-            })));
+            setDynamicAlerts(data.alerts.map((a: any): MineOpsAlert => {
+              const msg = a.message || a.title || 'Alert';
+              return {
+                title: msg.length > 50 ? msg.substring(0, 50) + '…' : msg,
+                detail: a.detail || `${(a.type || 'info').charAt(0).toUpperCase() + (a.type || 'info').slice(1)} - ${a.created_at ? new Date(a.created_at).toLocaleTimeString() : 'Now'}`,
+                tone: normalizeTone(a.severity || a.tone),
+                icon: toIconName(a.icon, a.type === 'emergency' ? 'warning' : 'notifications'),
+              };
+            }));
           } else {
             // Fallback: Fetch real alerts from dedicated endpoint if dashboard summary is empty
             try {
@@ -190,8 +195,8 @@ export default function RoleDashboardScreen() {
                 headers: { 'Authorization': `Bearer ${globalAuthToken}` },
               });
               if (alertRes.ok) {
-                const alertData = await alertRes.json();
-                if (alertData.status === 'success' && alertData.data.length > 0) {
+                const alertData = await readApiJson<{ status?: string; data?: any[] }>(alertRes);
+                if (alertData?.status === 'success' && alertData.data && alertData.data.length > 0) {
                   setDynamicAlerts(alertData.data.slice(0, 4).map((a: any): MineOpsAlert => ({
                     title: a.title || 'System Alert',
                     detail: `${a.type.charAt(0).toUpperCase() + a.type.slice(1)} - ${new Date(a.created_at).toLocaleTimeString()}`,

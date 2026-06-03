@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, readApiJson } from '@/constants/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
@@ -53,8 +53,8 @@ export default function TeamScreen() {
         const res = await apiFetchWithFallback('/api/users/workers', {
           headers: { Authorization: `Bearer ${globalAuthToken}` },
         });
-        const data = await res.json();
-        if (data.status === 'success') {
+        const data = await readApiJson<{ status?: string; data?: any[] }>(res);
+        if (data?.status === 'success') {
           const mappedTeam = data.data.map((t: any) => ({
             id: t.id,
             name: t.name || 'Unknown User',

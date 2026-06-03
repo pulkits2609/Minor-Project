@@ -41,6 +41,60 @@ export default function LoginScreen() {
     router.push({ pathname: '/dashboard/[role]', params: { role } });
   };
 
+  const DEMO_ACCOUNTS: { label: string; key: string; email: string; password: string; apiRole: string }[] = [
+    { label: 'Worker', key: 'worker', email: 'worker@demo.com', password: 'demo1234', apiRole: 'worker' },
+    { label: 'Supervisor', key: 'supervisor', email: 'supervisor@demo.com', password: 'demo1234', apiRole: 'supervisor' },
+    { label: 'Safety Officer', key: 'safety', email: 'safety@demo.com', password: 'demo1234', apiRole: 'safety_officer' },
+    { label: 'Admin', key: 'admin', email: 'admin@demo.com', password: 'demo1234', apiRole: 'admin' },
+    { label: 'Authority', key: 'authority', email: 'authority@demo.com', password: 'demo1234', apiRole: 'authority' },
+  ];
+
+  const handleDemoLogin = async (account: typeof DEMO_ACCOUNTS[0]) => {
+    setIsLoading(true);
+    try {
+      // Step 1: Try to register the demo user (safe if already exists - returns 400)
+      await apiFetchWithFallback('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${account.label} (Demo)`,
+          email: account.email,
+          password: account.password,
+          role: account.apiRole,
+        }),
+      });
+
+      // Step 2: Login with demo credentials
+      const response = await apiFetchWithFallback('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: account.email, password: account.password }),
+      });
+
+      const data = await readApiJson<{
+        access_token?: string;
+        error?: string;
+        message?: string;
+        user?: { role?: string | null };
+      }>(response);
+
+      if (response.ok && data?.access_token) {
+        const userRole = normalizeRoleForApp(data.user?.role) ?? account.key;
+        await setGlobalAuthToken(data.access_token);
+        await setGlobalUserRole(userRole);
+        navigateToDashboard(userRole);
+        return;
+      }
+    } catch {
+      // API unavailable
+    }
+
+    // Fallback: navigate to dashboard with demo role without real auth
+    await setGlobalAuthToken('demo-token');
+    await setGlobalUserRole(account.key);
+    navigateToDashboard(account.key);
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Missing Fields', 'Please enter your email and password.');
@@ -196,6 +250,41 @@ export default function LoginScreen() {
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </ThemedText>
             </Pressable>
+
+            <View style={styles.demoSection}>
+              <View style={[styles.demoList, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 }}>
+                  <MaterialIcons name="smartphone" size={16} color={palette.tint} />
+                  <ThemedText style={{ color: palette.tint, fontSize: 12, fontWeight: '800' }}>
+                    QUICK DEMO ACCESS
+                  </ThemedText>
+                </View>
+                {DEMO_ACCOUNTS.map((account) => (
+                  <Pressable
+                    key={account.key}
+                    onPress={() => handleDemoLogin(account)}
+                    disabled={isLoading}
+                    style={({ pressed }) => [
+                      styles.demoItem,
+                      { backgroundColor: palette.surface, borderColor: palette.border },
+                      pressed && styles.pressed,
+                    ]}>
+                    <View style={[styles.demoAvatar, { backgroundColor: palette.tint }]}>
+                      <ThemedText lightColor="#111111" darkColor="#111111" style={{ fontSize: 14, fontWeight: '900' }}>
+                        {account.label.charAt(0)}
+                      </ThemedText>
+                    </View>
+                    <View style={styles.demoText}>
+                      <ThemedText style={{ fontSize: 14, fontWeight: '800' }}>{account.label}</ThemedText>
+                      <ThemedText style={{ color: palette.muted, fontSize: 12, lineHeight: 18 }}>
+                        {account.email}
+                      </ThemedText>
+                    </View>
+                    <MaterialIcons name="login" size={18} color={palette.tint} />
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           </View>
 
           <View style={styles.linkRow}>

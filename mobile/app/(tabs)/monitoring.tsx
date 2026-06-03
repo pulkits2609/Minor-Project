@@ -234,12 +234,12 @@ function toneColor(tone: ToneStatus, palette: Palette) {
 
 function zoneSurface(status: ZoneStatus, palette: Palette) {
   if (status === 'critical') {
-    return palette.surfaceElevated;
+    return palette.danger + '15';
   }
   if (status === 'warning') {
-    return palette.surfaceElevated;
+    return palette.warning + '15';
   }
-  return palette.surfaceElevated;
+  return palette.success + '10';
 }
 
 function statusBackground(status: ZoneStatus | 'info', palette: Palette) {

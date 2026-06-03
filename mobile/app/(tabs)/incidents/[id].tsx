@@ -1,19 +1,36 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
-import { INCIDENT_DETAIL } from '@/constants/incidents';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { apiFetchWithFallback, readApiJson } from '@/constants/api';
+import { globalAuthToken } from '@/constants/auth';
 
 type Palette = typeof Colors.dark;
 
+type IncidentData = {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  zone: string;
+  date: string;
+  time: string;
+  severity: string;
+  status: string;
+  reporter: { name: string; role: string; id: string };
+  assignedTo?: { name: string; id: string };
+  timeline: { time: string; action: string; actor: string; status: string }[];
+};
+
 export default function IncidentDetailScreen() {
-  useProtectedRoute(); // any authenticated role
+  useProtectedRoute();
 
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
@@ -21,7 +38,75 @@ export default function IncidentDetailScreen() {
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
 
-  const incident = INCIDENT_DETAIL;
+  const [incident, setIncident] = useState<IncidentData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchIncident() {
+      if (!globalAuthToken || !params.id) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await apiFetchWithFallback(`/api/incidents`, {
+          headers: { Authorization: `Bearer ${globalAuthToken}` },
+        });
+        if (res.ok) {
+          const data = await readApiJson<{ status?: string; data?: any[] }>(res);
+          if (data?.status === 'success') {
+            const found = (data.data || []).find((t: any) => String(t.id) === params.id);
+            if (found) {
+              setIncident({
+                id: found.id,
+                code: `INC-${String(found.id).substring(0, 8).toUpperCase()}`,
+                title: found.description ? found.description.split('.')[0] : 'Incident',
+                description: found.description || '',
+                zone: found.location || 'Unknown',
+                date: found.created_at ? new Date(found.created_at).toLocaleDateString() : 'N/A',
+                time: found.created_at ? new Date(found.created_at).toLocaleTimeString() : 'N/A',
+                severity: (found.severity || 'medium').toLowerCase(),
+                status: found.status || 'pending-verification',
+                reporter: { name: found.reporter || 'Unknown', role: '', id: '' },
+                timeline: [
+                  { time: found.created_at ? new Date(found.created_at).toLocaleTimeString() : 'N/A', action: 'Incident reported', actor: found.reporter || 'Unknown', status: 'created' },
+                ],
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch incident', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchIncident();
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={palette.tint} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!incident) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <ThemedText style={{ color: palette.muted, fontSize: 16 }}>Incident not found</ThemedText>
+          <Link href={{ pathname: '/incidents', params: { role: selectedRole.key } }} asChild>
+            <Pressable style={({ pressed }) => [styles.backButton, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }, pressed && styles.pressed, { marginTop: 16 }]}>
+              <MaterialIcons name="arrow-back" size={18} color={palette.text} />
+            </Pressable>
+          </Link>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>

@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useRouter } from 'expo-router';
-import { apiFetchWithFallback } from '@/constants/api';
+import { apiFetchWithFallback, getApiErrorMessage, readApiJson } from '@/constants/api';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -83,10 +83,10 @@ export default function RegisterScreen() {
         }),
       });
 
-      const data = await response.json();
+      const data = await readApiJson<{ error?: string; message?: string }>(response);
 
       if (!response.ok) {
-        Alert.alert('Registration Failed', data.error || 'An error occurred during registration.');
+        Alert.alert('Registration Failed', getApiErrorMessage(data, 'An error occurred during registration.'));
         return;
       }
 
