@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 from app.utils.jwt_handler import verify_token
 from app.services.user_service import get_all_workers
 

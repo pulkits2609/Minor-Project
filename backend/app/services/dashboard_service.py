@@ -1,7 +1,7 @@
 from app.models.user import User
 from app.models.task import Task
 from app.models.incident import Incident
-from app.extensions import db
+
 import uuid
 
 

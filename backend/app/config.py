@@ -56,6 +56,8 @@ def _engine_options(database_uri):
 
     return options
 
+
+
 class Config:
     SECRET_KEY = _env("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = _database_url()

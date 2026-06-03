@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request
 from app.utils.jwt_handler import verify_token
 from app.services.attendance_service import *
 
@@ -11,7 +11,12 @@ def checkin():
     if "error" in token:
         return {"error": token["error"]}, 401
 
-    success, error = check_in(token["user_id"], request.json["shift_id"])
+    data = request.get_json() or {}
+    shift_id = data.get("shift_id")
+    if not shift_id:
+        return {"error": "shift_id is required"}, 400
+
+    success, error = check_in(token["user_id"], shift_id)
 
     if not success:
         return {"error": error}, 400
@@ -25,7 +30,14 @@ def checkout():
     if "error" in token:
         return {"error": token["error"]}, 401
 
-    check_out(token["user_id"], request.json["shift_id"])
+    data = request.get_json() or {}
+    shift_id = data.get("shift_id")
+    if not shift_id:
+        return {"error": "shift_id is required"}, 400
+
+    success = check_out(token["user_id"], shift_id)
+    if not success:
+        return {"error": "No check-in record found for this shift"}, 400
 
     return {"status": "success"}
 

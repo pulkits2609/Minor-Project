@@ -6,7 +6,6 @@ import uuid
 from app.services.task_service import (
     get_tasks,
     create_task,
-    update_task_status,
     get_all_tasks
 )
 

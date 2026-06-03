@@ -39,13 +39,6 @@ def _status_for_db(status):
     return status
 
 
-def _normalize_incident_row(row):
-    item = dict(row._mapping)
-    if item.get("status") == OPEN_INCIDENT_STATUS:
-        item["status"] = "pending-verification"
-    return item
-
-
 def report_incident(reporter_id, data):
     location = data.get("location")
     severity = str(data.get("severity", "medium")).strip().lower()

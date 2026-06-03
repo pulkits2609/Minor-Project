@@ -16,17 +16,18 @@ def fetch_incidents():
     token_data = verify_token(request)
     if "error" in token_data:
         return jsonify({"error": token_data["error"]}), 401
-    
+
     role = token_data["role"]
     if role in ["supervisor", "safety_officer", "admin", "authority"]:
         incidents = get_all_incidents()
     else:
         incidents = get_incidents_by_user(token_data["user_id"])
-    
+
     return jsonify({
         "status": "success",
         "data": incidents
     })
+
 
 @incidents_bp.route("/api/incidents", methods=["POST"])
 @incidents_bp.route("/incidents/smp/hazard", methods=["POST"])
@@ -34,7 +35,7 @@ def submit_incident():
     token_data = verify_token(request)
     if "error" in token_data:
         return jsonify({"error": token_data["error"]}), 401
-    
+
     data = request.get_json(silent=True) or {}
     if not data.get("location"):
         return jsonify({"error": "location is required"}), 400
@@ -53,27 +54,28 @@ def submit_incident():
         if current_app.debug:
             response["details"] = str(getattr(exc, "orig", exc))
         return jsonify(response), 500
-    
+
     return jsonify({
         "status": "success",
         "reference": f"INC-{incident_id[:8].upper()}",
         "id": incident_id
     })
 
+
 @incidents_bp.route("/api/incidents/<id>/status", methods=["PATCH"])
 def change_status(id):
     token_data = verify_token(request)
     if "error" in token_data:
         return jsonify({"error": token_data["error"]}), 401
-    
+
     if token_data["role"] not in ["supervisor", "safety_officer", "admin"]:
         return jsonify({"error": "Unauthorized"}), 403
-    
+
     data = request.get_json()
     status = data.get("status")
     if not status:
         return jsonify({"error": "Status required"}), 400
-    
+
     success = update_incident_status(id, status)
     return jsonify({
         "status": "success" if success else "failed"
