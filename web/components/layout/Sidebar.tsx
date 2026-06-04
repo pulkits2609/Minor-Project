@@ -39,14 +39,12 @@ const menuMap: Record<string, Array<{ name: string; path: string; icon: React.Re
     { name: "Safety Monitoring", path: "/dashboard/safety/monitoring", icon: <Activity size={16} /> },
     { name: "Alerts", path: "/dashboard/safety/alerts", icon: <Bell size={16} /> },
     { name: "Incident Review", path: "/dashboard/safety/incidents/review", icon: <ShieldCheck size={16} /> },
-    { name: "Settings", path: "/dashboard/safety/settings", icon: <Settings size={16} /> },
   ],
   admin: [
     { name: "Dashboard", path: "/dashboard/admin", icon: <LayoutDashboard size={16} /> },
     { name: "Users", path: "/dashboard/admin/users", icon: <Users size={16} /> },
     { name: "Roles", path: "/dashboard/admin/roles", icon: <UserCog size={16} /> },
     { name: "Logs", path: "/dashboard/admin/logs", icon: <FileText size={16} /> },
-    { name: "Settings", path: "/dashboard/admin/settings", icon: <Settings size={16} /> },
   ],
   authority: [
     { name: "Dashboard", path: "/dashboard/authority", icon: <LayoutDashboard size={16} /> },
@@ -137,13 +135,6 @@ export default function Sidebar() {
 
       {/* Bottom */}
       <div className="px-3 py-4 border-t border-white/[0.06] space-y-1">
-        <Link
-          href={`/dashboard/${role}/settings`}
-          className="nav-item"
-        >
-          <Settings size={16} className="text-neutral-500" />
-          Settings
-        </Link>
         <Link href="/login" className="nav-item text-red-400/60 hover:text-red-400 hover:bg-red-500/5">
           <LogOut size={16} />
           Sign Out
