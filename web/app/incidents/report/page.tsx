@@ -85,7 +85,6 @@ export function ReportIncidentPage() {
 
         {submitted ? (
           <div className="bg-green-900/20 border border-green-700 p-8 rounded-xl text-center">
-            <div className="text-4xl mb-4">âœ“</div>
             <h3 className="text-2xl font-bold text-green-400 mb-2">
               Incident Reported
             </h3>
