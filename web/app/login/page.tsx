@@ -208,9 +208,6 @@ export default function LoginPage() {
                 <input type="checkbox" className="accent-orange-500 rounded" />
                 Remember me
               </label>
-              <span className="text-xs text-orange-400 hover:text-orange-300 cursor-pointer transition-colors">
-                Forgot password?
-              </span>
             </div>
 
             <button
@@ -234,39 +231,6 @@ export default function LoginPage() {
           </div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-white/[0.07]" />
-            <span className="text-xs text-neutral-600 font-medium">or try a demo account</span>
-            <div className="flex-1 h-px bg-white/[0.07]" />
-          </div>
-
-          {/* Demo accounts */}
-          <div className="mb-6">
-            <button
-              onClick={() => setShowDemo(!showDemo)}
-              className="w-full py-2.5 rounded-xl border border-white/[0.08] text-neutral-400 text-sm hover:border-orange-500/30 hover:text-orange-400 transition-all flex items-center justify-center gap-2"
-            >
-              {showDemo ? "Hide demo accounts" : "Show demo accounts"}
-            </button>
-
-            {showDemo && (
-              <div className="mt-3 space-y-2 animate-fade-in-up">
-                {demoAccounts.map((acc) => (
-                  <button
-                    key={acc.role}
-                    onClick={() => handleLogin(acc.email, acc.password)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border ${acc.color} transition-all hover:opacity-80`}
-                  >
-                    <div className="text-left">
-                      <p className="text-sm font-semibold">{acc.label}</p>
-                      <p className="text-xs opacity-60">{acc.email}</p>
-                    </div>
-                    <ArrowRight size={14} className="opacity-60" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* Security note */}
           <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] flex gap-2.5 text-xs text-neutral-600 mb-6">
