@@ -365,9 +365,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -465,8 +465,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatar: {
-    width: 42,
-    height: 42,
+    width: 48,
+    height: 48,
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     minHeight: 46,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

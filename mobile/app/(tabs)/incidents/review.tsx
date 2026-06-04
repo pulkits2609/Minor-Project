@@ -671,9 +671,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -799,14 +799,14 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     minHeight: 46,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryAction: {
     minHeight: 48,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
   textInput: {
     minHeight: 48,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 14,
     fontSize: 14,
   },
@@ -857,7 +857,7 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -876,7 +876,7 @@ const styles = StyleSheet.create({
   workerAvatar: {
     width: 38,
     height: 38,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
   },
   priorityChip: {
     minHeight: 44,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: 12,
     alignItems: 'center',

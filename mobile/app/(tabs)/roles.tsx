@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
-  backButton: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  backButton: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   pressed: { opacity: 0.75 },
   topMeta: { alignItems: 'flex-end', flex: 1 },
   brand: { marginBottom: 2 },

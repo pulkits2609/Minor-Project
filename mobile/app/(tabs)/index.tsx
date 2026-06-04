@@ -162,8 +162,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   navLogin: {
-    height: 38,
-    borderRadius: 12,
+    minHeight: 48,
+    borderRadius: 16,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   roleCard: {
-    width: '48%',
+    width: '47.5%',
     borderRadius: 24,
     borderWidth: 1,
     padding: 18,

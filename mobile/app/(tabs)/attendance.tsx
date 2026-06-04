@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator, Platform, Alert, Modal, FlatList } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -125,6 +125,7 @@ export default function AttendanceScreen() {
 
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
+  const router = useRouter();
   const params = useLocalSearchParams<{ role?: string }>();
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
@@ -282,16 +283,16 @@ export default function AttendanceScreen() {
         contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.background }]}
         showsVerticalScrollIndicator={false}>
         <View style={[styles.topRow, { borderBottomColor: palette.border }]}>
-          <Link href={{ pathname: '/dashboard/[role]', params: { role: selectedRole.key } }} asChild>
-            <Pressable
-              style={({ pressed }) => [
-                styles.backButton,
-                { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
-                pressed && styles.pressed,
-              ]}>
-              <MaterialIcons name="arrow-back" size={18} color={palette.text} />
-            </Pressable>
-          </Link>
+          <Pressable
+            onPress={() => router.replace({ pathname: '/dashboard/[role]', params: { role: selectedRole.key } })}
+            accessibilityLabel="Back to dashboard"
+            style={({ pressed }) => [
+              styles.backButton,
+              { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
+              pressed && styles.pressed,
+            ]}>
+            <MaterialIcons name="arrow-back" size={20} color={palette.text} />
+          </Pressable>
 
           <View style={styles.topMeta}>
             <ThemedText type="subtitle" style={styles.brand}>
@@ -416,38 +417,48 @@ export default function AttendanceScreen() {
             </Modal>
 
             <View style={styles.checkRow}>
-            <Pressable
-              disabled={actionLoading !== null}
-              onPress={() => handleCheckAction('checkin')}
-              style={({ pressed }) => [
-                styles.checkButton,
-                { backgroundColor: palette.success + '22', borderColor: palette.success },
-                pressed && styles.pressed,
-              ]}>
-              <View style={[styles.checkIconWrap, { backgroundColor: palette.success + '26' }]}>
-                <MaterialIcons name="login" size={16} color={palette.success} />
-              </View>
-              <ThemedText style={{ color: palette.success, fontSize: 13, fontWeight: '800' }}>
-                {actionLoading === 'checkin' ? 'Checking In...' : 'Check In'}
-              </ThemedText>
-            </Pressable>
+              <Pressable
+                disabled={actionLoading !== null}
+                onPress={() => handleCheckAction('checkin')}
+                style={({ pressed }) => [
+                  styles.checkButton,
+                  { backgroundColor: palette.success + '22', borderColor: palette.success },
+                  pressed && styles.pressed,
+                ]}>
+                <View style={[styles.checkIconWrap, { backgroundColor: palette.success + '26' }]}>
+                  <MaterialIcons name="login" size={18} color={palette.success} />
+                </View>
+                <View style={styles.checkTextBlock}>
+                  <ThemedText style={{ color: palette.success, fontSize: 14, fontWeight: '900' }}>
+                    {actionLoading === 'checkin' ? 'Checking in...' : 'Check In'}
+                  </ThemedText>
+                  <ThemedText style={{ color: palette.muted, fontSize: 12, lineHeight: 17 }}>
+                    Start assigned shift attendance
+                  </ThemedText>
+                </View>
+              </Pressable>
 
-            <Pressable
-              disabled={actionLoading !== null}
-              onPress={() => handleCheckAction('checkout')}
-              style={({ pressed }) => [
-                styles.checkButton,
-                { backgroundColor: palette.danger + '22', borderColor: palette.danger },
-                pressed && styles.pressed,
-              ]}>
-              <View style={[styles.checkIconWrap, { backgroundColor: palette.danger + '26' }]}>
-                <MaterialIcons name="logout" size={16} color={palette.danger} />
-              </View>
-              <ThemedText style={{ color: palette.danger, fontSize: 13, fontWeight: '800' }}>
-                {actionLoading === 'checkout' ? 'Checking Out...' : 'Check Out'}
-              </ThemedText>
-            </Pressable>
-          </View>
+              <Pressable
+                disabled={actionLoading !== null}
+                onPress={() => handleCheckAction('checkout')}
+                style={({ pressed }) => [
+                  styles.checkButton,
+                  { backgroundColor: palette.danger + '22', borderColor: palette.danger },
+                  pressed && styles.pressed,
+                ]}>
+                <View style={[styles.checkIconWrap, { backgroundColor: palette.danger + '26' }]}>
+                  <MaterialIcons name="logout" size={18} color={palette.danger} />
+                </View>
+                <View style={styles.checkTextBlock}>
+                  <ThemedText style={{ color: palette.danger, fontSize: 14, fontWeight: '900' }}>
+                    {actionLoading === 'checkout' ? 'Checking out...' : 'Check Out'}
+                  </ThemedText>
+                  <ThemedText style={{ color: palette.muted, fontSize: 12, lineHeight: 17 }}>
+                    Finish the active shift safely
+                  </ThemedText>
+                </View>
+              </Pressable>
+            </View>
           </>
         ) : null}
 
@@ -455,7 +466,7 @@ export default function AttendanceScreen() {
           {filteredAttendance.map((person) => (
             <View key={person.id} style={[styles.recordCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
               <View style={styles.recordHeading}>
-                <View>
+                <View style={styles.recordHeadingText}>
                   <ThemedText style={styles.recordName}>{person.name}</ThemedText>
                   <ThemedText style={{ color: palette.muted, fontSize: 12, marginTop: 4 }}>
                     Check in {person.checkIn} - Check out {person.checkOut}
@@ -479,7 +490,7 @@ export default function AttendanceScreen() {
                 </View>
               </View>
             </View>
-          ))}\
+          ))}
         </View>
 
         {filteredAttendance.length === 0 ? (
@@ -550,9 +561,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -586,33 +597,36 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   statCard: {
-    width: '48%',
+    width: '47.5%',
     borderRadius: 22,
     borderWidth: 1,
     padding: 16,
   },
   checkRow: {
-    flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     marginTop: 16,
   },
   checkButton: {
-    flex: 1,
-    minHeight: 54,
+    minHeight: 64,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 10,
     flexDirection: 'row',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   checkIconWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 34,
+    height: 34,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  checkTextBlock: {
+    flex: 1,
+    gap: 2,
   },
   recordList: {
     gap: 12,
@@ -629,6 +643,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  recordHeadingText: {
+    flex: 1,
   },
   recordName: {
     fontSize: 15,
@@ -682,7 +699,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     marginVertical: 4,
     borderWidth: 1,
   },
