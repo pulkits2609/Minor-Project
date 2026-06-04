@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.utils.jwt_handler import verify_token
 from app.models.task import Task
+from app.models.incident import Incident
 from app.extensions import db
 import uuid
 from app.services.task_service import (
@@ -120,6 +121,17 @@ def update_status():
 
     #Update task status
     task.status = status
+
+    # Auto-resolve linked incident
+    if status == "completed" and getattr(task, "incident_id", None):
+
+        incident = Incident.query.filter(
+            Incident.id == task.incident_id
+        ).first()
+
+        if incident:
+            incident.status = "resolved"
+
     db.session.commit()
 
     return jsonify({
