@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState, useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,8 +11,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 
 
-import { globalAuthToken } from '@/constants/auth';
-import { apiFetchWithFallback, readApiJson } from '@/constants/api';
+import { globalAuthToken, loadAuthState } from '@/constants/auth';
+import { apiFetchWithFallback, getApiErrorMessage, readApiJson } from '@/constants/api';
+import { toApiRole } from '@/constants/roles';
 
 type UserStatus = 'Active' | 'Suspended';
 type UserRole = 'Worker' | 'Supervisor' | 'Safety Officer' | 'Administrator';
@@ -27,12 +28,27 @@ type UserRow = {
 };
 
 const ROLE_FILTERS: ('all' | UserRole)[] = ['all', 'Worker', 'Supervisor', 'Safety Officer', 'Administrator'];
+const CREATE_ROLES: UserRole[] = ['Worker', 'Supervisor', 'Safety Officer', 'Administrator'];
+const ROLE_LABEL_TO_API: Record<UserRole, string> = {
+  Worker: 'worker',
+  Supervisor: 'supervisor',
+  'Safety Officer': 'safety_officer',
+  Administrator: 'admin',
+};
+const API_ROLE_TO_LABEL: Record<string, UserRole> = {
+  worker: 'Worker',
+  supervisor: 'Supervisor',
+  safety_officer: 'Safety Officer',
+  admin: 'Administrator',
+};
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function UsersScreen() {
   useProtectedRoute(['admin', 'authority']);
 
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
+  const router = useRouter();
   const params = useLocalSearchParams<{ role?: string }>();
   const roleValue = Array.isArray(params.role) ? params.role[0] : params.role;
   const selectedRole = roleProfiles.find((role) => role.key === roleValue) ?? roleProfiles[0];
@@ -42,16 +58,29 @@ export default function UsersScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [employeeId, setEmployeeId] = useState('');
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<UserRole>('Worker');
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
 
   useEffect(() => {
     async function fetchUsers() {
-      if (!globalAuthToken) return;
+      let authToken = globalAuthToken;
+      if (!authToken) {
+        const { token } = await loadAuthState();
+        authToken = token;
+      }
+
+      if (!authToken) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await apiFetchWithFallback('/api/users/workers', {
-          headers: { Authorization: `Bearer ${globalAuthToken}` },
+          headers: { Authorization: `Bearer ${authToken}` },
         });
 
         const contentType = res.headers.get('content-type');
@@ -62,11 +91,11 @@ export default function UsersScreen() {
 
         const data = await readApiJson<{ status?: string; data?: any[] }>(res);
         if (data?.status === 'success') {
-          const mappedUsers = data.data.map((u: any) => ({
+          const mappedUsers = (data.data || []).map((u: any) => ({
             id: u.id,
             name: u.name || 'Unknown',
             email: u.email || '',
-            role: u.role || 'worker',
+            role: API_ROLE_TO_LABEL[u.role] || 'Worker',
             status: u.status || 'Active',
             lastActive: u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A',
           }));
@@ -81,21 +110,81 @@ export default function UsersScreen() {
     fetchUsers();
   }, []);
 
-  const filterRoleMap: Record<string, string> = {
-    'Worker': 'worker',
-    'Supervisor': 'supervisor',
-    'Safety Officer': 'safety_officer',
-    'Administrator': 'admin',
-  };
-
   const filteredUsers = useMemo(() => {
     return filterRole === 'all' ? users : users.filter((user) => {
-      const mapped = filterRoleMap[filterRole];
-      return user.role === mapped || user.role === filterRole;
+      return user.role === filterRole;
     });
   }, [filterRole, users]);
 
   const canCreate = selectedRole.key === 'admin' || selectedRole.key === 'authority';
+
+  const resetCreateForm = () => {
+    setFullName('');
+    setEmail('');
+    setEmployeeId('');
+    setTemporaryPassword('');
+    setNewUserRole('Worker');
+  };
+
+  const handleCreateUser = async () => {
+    const trimmedName = fullName.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+    const password = temporaryPassword.trim() || employeeId.trim();
+    const apiRole = toApiRole(ROLE_LABEL_TO_API[newUserRole]) || ROLE_LABEL_TO_API[newUserRole];
+
+    if (!trimmedName || !trimmedEmail || !password) {
+      Alert.alert('Missing Fields', 'Please enter name, email, and a temporary password or employee ID.');
+      return;
+    }
+
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Weak Password', 'Temporary password must be at least 6 characters.');
+      return;
+    }
+
+    try {
+      setIsCreatingUser(true);
+      const res = await apiFetchWithFallback('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmedName,
+          email: trimmedEmail,
+          password,
+          role: apiRole,
+        }),
+      });
+      const data = await readApiJson<{ message?: string; user_id?: string; error?: string }>(res);
+
+      if (!res.ok) {
+        Alert.alert('Create User Failed', getApiErrorMessage(data, 'Unable to create user.'));
+        return;
+      }
+
+      const newUser: UserRow = {
+        id: data?.user_id || `${trimmedEmail}-${Date.now()}`,
+        name: trimmedName,
+        email: trimmedEmail,
+        role: newUserRole,
+        status: 'Active',
+        lastActive: 'Today',
+      };
+
+      setUsers((current) => [newUser, ...current.filter((user) => user.email !== trimmedEmail)]);
+      resetCreateForm();
+      setShowCreate(false);
+      Alert.alert('Success', 'User created successfully.');
+    } catch (error) {
+      Alert.alert('Create User Failed', error instanceof Error ? error.message : 'Network request failed.');
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
@@ -104,16 +193,15 @@ export default function UsersScreen() {
         contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.background }]}
         showsVerticalScrollIndicator={false}>
         <View style={[styles.topRow, { borderBottomColor: palette.border }]}>
-          <Link href={{ pathname: '/dashboard/[role]', params: { role: selectedRole.key } }} asChild>
-            <Pressable
-              style={({ pressed }) => [
-                styles.backButton,
-                { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
-                pressed && styles.pressed,
-              ]}>
-              <MaterialIcons name="arrow-back" size={18} color={palette.text} />
-            </Pressable>
-          </Link>
+          <Pressable
+            onPress={() => router.replace({ pathname: '/dashboard/[role]', params: { role: selectedRole.key } })}
+            style={({ pressed }) => [
+              styles.backButton,
+              { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
+              pressed && styles.pressed,
+            ]}>
+            <MaterialIcons name="arrow-back" size={18} color={palette.text} />
+          </Pressable>
 
           <View style={styles.topMeta}>
             <ThemedText type="subtitle" style={styles.brand}>MineOps</ThemedText>
@@ -142,17 +230,36 @@ export default function UsersScreen() {
             <ThemedText type="subtitle">Add New User</ThemedText>
             <View style={styles.formStack}>
               <TextInput value={fullName} onChangeText={setFullName} placeholder="Full Name" placeholderTextColor={palette.muted} style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]} />
-              <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={palette.muted} keyboardType="email-address" style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]} />
+              <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={palette.muted} autoCapitalize="none" keyboardType="email-address" style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]} />
               <TextInput value={employeeId} onChangeText={setEmployeeId} placeholder="Employee ID" placeholderTextColor={palette.muted} style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]} />
+              <TextInput value={temporaryPassword} onChangeText={setTemporaryPassword} placeholder="Temporary Password" placeholderTextColor={palette.muted} secureTextEntry style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]} />
               <View style={styles.roleChips}>
-                {['Worker', 'Supervisor', 'Safety Officer', 'Administrator'].map((item) => (
-                  <View key={item} style={[styles.roleChip, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                    <ThemedText style={{ color: palette.text, fontSize: 12, fontWeight: '800' }}>{item}</ThemedText>
-                  </View>
-                ))}
+                {CREATE_ROLES.map((item) => {
+                  const selected = newUserRole === item;
+                  return (
+                    <Pressable
+                      key={item}
+                      onPress={() => setNewUserRole(item)}
+                      style={({ pressed }) => [
+                        styles.roleChip,
+                        {
+                          backgroundColor: selected ? palette.tint : palette.surface,
+                          borderColor: selected ? palette.tint : palette.border,
+                        },
+                        pressed && styles.pressed,
+                      ]}>
+                      <ThemedText style={{ color: selected ? '#111111' : palette.text, fontSize: 12, fontWeight: '800' }}>{item}</ThemedText>
+                    </Pressable>
+                  );
+                })}
               </View>
-              <Pressable style={({ pressed }) => [styles.secondaryButton, { backgroundColor: palette.surface, borderColor: palette.border }, pressed && styles.pressed]}>
-                <ThemedText style={{ color: palette.text, fontSize: 14, fontWeight: '800' }}>Create User</ThemedText>
+              <Pressable
+                onPress={handleCreateUser}
+                disabled={isCreatingUser}
+                style={({ pressed }) => [styles.secondaryButton, { backgroundColor: palette.surface, borderColor: palette.border }, pressed && styles.pressed]}>
+                <ThemedText style={{ color: palette.text, fontSize: 14, fontWeight: '800' }}>
+                  {isCreatingUser ? 'Creating...' : 'Create User'}
+                </ThemedText>
               </Pressable>
             </View>
           </View>

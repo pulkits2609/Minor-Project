@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +12,7 @@ import { useProtectedRoute } from '@/hooks/useProtectedRoute';
 import { apiFetchWithFallback, readApiJson } from '@/constants/api';
 
 
-import { globalAuthToken } from '@/constants/auth';
+import { globalAuthToken, loadAuthState } from '@/constants/auth';
 
 
 type AlertType = 'critical' | 'warning' | 'alert' | 'info';
@@ -25,6 +25,7 @@ type AlertItem = {
   zone: string;
   time: string;
   action: string;
+  isRead: boolean;
 };
 
 const FILTERS: ('all' | AlertType)[] = ['all', 'critical', 'warning', 'alert', 'info'];
@@ -39,9 +40,40 @@ function normalizeAlertType(alert: any): AlertType {
   return 'info';
 }
 
+function extractZone(alert: any) {
+  const directZone = alert.zone || alert.location;
+  if (typeof directZone === 'string' && directZone.trim()) {
+    return directZone.trim();
+  }
+
+  const message = String(alert.message || '');
+  const zoneMatch = message.match(/\bZone\s+[A-Za-z0-9-]+/i);
+  if (zoneMatch) {
+    return zoneMatch[0].replace(/\bzone\b/i, 'Zone');
+  }
+
+  return 'Site wide';
+}
+
+function deriveAlertTitle(alert: any) {
+  if (alert.title) {
+    return alert.title;
+  }
+
+  const zone = extractZone(alert);
+  const type = String(alert.type || '').toLowerCase();
+
+  if (type === 'emergency' || String(alert.message || '').toLowerCase().includes('incident reported')) {
+    return `Incident alert - ${zone}`;
+  }
+
+  return '';
+}
+
 export default function AlertsScreen() {
   useProtectedRoute(['worker', 'supervisor', 'safety', 'authority']);
 
+  const router = useRouter();
   const colorScheme = useColorScheme() ?? 'dark';
   const palette = Colors[colorScheme];
   const params = useLocalSearchParams<{ role?: string }>();
@@ -56,28 +88,39 @@ export default function AlertsScreen() {
 
   useEffect(() => {
     async function fetchAlerts() {
-      if (!globalAuthToken) return;
+      let authToken = globalAuthToken;
+      if (!authToken) {
+        const { token } = await loadAuthState();
+        authToken = token;
+      }
+
+      if (!authToken) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await apiFetchWithFallback('/api/alerts', {
-          headers: { Authorization: `Bearer ${globalAuthToken}` },
+          headers: { Authorization: `Bearer ${authToken}` },
         });
 
         const contentType = res.headers.get('content-type');
         if (res.ok && contentType && contentType.includes('application/json')) {
           const data = await readApiJson<{ status?: string; data?: any[] }>(res);
           if (data?.status === 'success') {
-            const rawAlerts = data.data || [];
+            const rawAlerts = (data.data || []).filter((alert: any) => !alert.is_read);
             const mappedAlerts = rawAlerts.map((a: any) => {
               const msg = a.message || '';
               const derivedTitle = a.title || (msg.length > 40 ? msg.substring(0, 40) + '…' : msg) || 'System Alert';
               return {
                 id: a.id,
-                title: derivedTitle,
+                title: deriveAlertTitle(a) || derivedTitle,
                 message: msg,
                 type: normalizeAlertType(a),
-                zone: a.zone || a.location || 'All zones',
+                zone: extractZone(a),
                 time: a.created_at ? new Date(a.created_at).toLocaleString() : new Date().toLocaleTimeString(),
                 action: a.action || (a.is_read ? 'Read' : 'Review'),
+                isRead: Boolean(a.is_read),
               };
             });
             setAlerts(mappedAlerts);
@@ -95,16 +138,52 @@ export default function AlertsScreen() {
     fetchAlerts();
   }, []);
 
+  const markAlertRead = async (alertId: string | number) => {
+    let authToken = globalAuthToken;
+    if (!authToken) {
+      const { token } = await loadAuthState();
+      authToken = token;
+    }
+
+    if (!authToken) {
+      return;
+    }
+
+    try {
+      await apiFetchWithFallback('/api/alerts/read', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ alert_id: alertId }),
+      });
+    } catch (error) {
+      console.warn('Failed to mark alert as read', error);
+    }
+  };
+
+  const clearAlert = async (alertId: string | number) => {
+    setDismissedAlerts((current) => (current.includes(alertId) ? current : [...current, alertId]));
+    setAlerts((current) => current.filter((item) => item.id !== alertId));
+    await markAlertRead(alertId);
+  };
+
+  const handleReviewAlert = async (alert: AlertItem) => {
+    await clearAlert(alert.id);
+    router.push({ pathname: '/incidents/review', params: { role: selectedRole.key } });
+  };
+
   const filteredAlerts = alerts.filter((alert) => {
     const matchesType = filterType === 'all' || alert.type === filterType;
     return matchesType && !dismissedAlerts.includes(alert.id);
   });
 
   const alertCounts = {
-    critical: alerts.filter((item) => item.type === 'critical').length,
-    warning: alerts.filter((item) => item.type === 'warning').length,
-    alert: alerts.filter((item) => item.type === 'alert').length,
-    info: alerts.filter((item) => item.type === 'info').length,
+    critical: filteredAlerts.filter((item) => item.type === 'critical').length,
+    warning: filteredAlerts.filter((item) => item.type === 'warning').length,
+    alert: filteredAlerts.filter((item) => item.type === 'alert').length,
+    info: filteredAlerts.filter((item) => item.type === 'info').length,
   };
 
   if (loading) {
@@ -122,16 +201,15 @@ export default function AlertsScreen() {
         contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.background }]}
         showsVerticalScrollIndicator={false}>
         <View style={[styles.topRow, { borderBottomColor: palette.border }]}>
-          <Link href={{ pathname: '/dashboard/[role]', params: { role: selectedRole.key } }} asChild>
-            <Pressable
-              style={({ pressed }) => [
-                styles.backButton,
-                { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
-                pressed && styles.pressed,
-              ]}>
-              <MaterialIcons name="arrow-back" size={18} color={palette.text} />
-            </Pressable>
-          </Link>
+          <Pressable
+            onPress={() => router.replace({ pathname: '/dashboard/[role]', params: { role: selectedRole.key } })}
+            style={({ pressed }) => [
+              styles.backButton,
+              { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
+              pressed && styles.pressed,
+            ]}>
+            <MaterialIcons name="arrow-back" size={18} color={palette.text} />
+          </Pressable>
 
           <View style={styles.topMeta}>
             <ThemedText type="subtitle" style={styles.brand}>
@@ -264,6 +342,7 @@ export default function AlertsScreen() {
 
               <View style={styles.alertActions}>
                 <Pressable
+                  onPress={() => handleReviewAlert(alert)}
                   style={({ pressed }) => [
                     styles.actionButton,
                     { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
@@ -273,18 +352,7 @@ export default function AlertsScreen() {
                 </Pressable>
 
                 <Pressable
-                  onPress={async () => {
-                    setDismissedAlerts((current) => [...current, alert.id]);
-                    if (globalAuthToken) {
-                      try {
-                        await apiFetchWithFallback('/api/alerts/read', {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${globalAuthToken}` },
-                          body: JSON.stringify({ alert_id: alert.id }),
-                        });
-                      } catch { /* silent */ }
-                    }
-                  }}
+                  onPress={() => clearAlert(alert.id)}
                   style={({ pressed }) => [styles.dismissButton, { backgroundColor: palette.surfaceElevated }, pressed && styles.pressed]}>
                   <MaterialIcons name="close" size={16} color={palette.muted} />
                 </Pressable>

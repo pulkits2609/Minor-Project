@@ -67,7 +67,8 @@ export function getApiErrorMessage(data: unknown, fallback: string) {
 export async function apiFetchWithFallback(
   path: string,
   init?: RequestInit,
-  fallbackPaths: string[] = []
+  fallbackPaths: string[] = [],
+  timeoutMs = 15000
 ): Promise<Response> {
   const allPaths = [path, ...fallbackPaths];
   const networkErrors: unknown[] = [];
@@ -78,7 +79,17 @@ export async function apiFetchWithFallback(
       const url = toAbsoluteUrl(baseUrl, currentPath);
 
       try {
-        const response = await fetch(url, init);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        let response: Response;
+        try {
+          response = await fetch(url, {
+            ...init,
+            signal: init?.signal ?? controller.signal,
+          });
+        } finally {
+          clearTimeout(timeoutId);
+        }
         const contentType = response.headers.get('content-type') ?? '';
 
         // HTML 404s usually mean the route is missing on that host. JSON 404s are
