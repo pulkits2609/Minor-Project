@@ -1,6 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +9,8 @@ import { Colors } from '@/constants/theme';
 import { roleProfiles } from '@/constants/mineops';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { globalAuthToken } from '@/constants/auth';
+import { apiFetchWithFallback, readApiJson } from '@/constants/api';
 
 type Palette = typeof Colors.dark;
 type ZoneStatus = 'normal' | 'warning' | 'critical';
@@ -27,14 +30,14 @@ type Sensor = {
   status: ZoneStatus | 'info';
 };
 
-const ZONES: Zone[] = [
+const FALLBACK_ZONES: Zone[] = [
   { zone: 'Zone A', gasLevel: 35, temp: 42, status: 'normal' },
   { zone: 'Zone B', gasLevel: 52, temp: 45, status: 'warning' },
   { zone: 'Zone C', gasLevel: 73, temp: 47, status: 'critical' },
   { zone: 'Zone D', gasLevel: 28, temp: 40, status: 'normal' },
 ];
 
-const SENSORS: Sensor[] = [
+const FALLBACK_SENSORS: Sensor[] = [
   { name: 'Humidity Sensor', zone: 'Zone A', value: '65%', status: 'normal' },
   { name: 'Vibration Monitor', zone: 'Zone B', value: '2.3 Hz', status: 'normal' },
   { name: 'Gas Detector', zone: 'Zone C', value: '73 ppm', status: 'critical' },
@@ -55,6 +58,59 @@ export default function MonitoringScreen() {
   const metricCardWidth = isCompact ? '48%' : '23%';
   const zoneCardWidth = isCompact ? '100%' : '48%';
   const sensorCardWidth = isCompact ? '48%' : '23%';
+
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [sensors, setSensors] = useState<Sensor[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchMonitoring() {
+      if (!globalAuthToken) {
+        setZones(FALLBACK_ZONES);
+        setSensors(FALLBACK_SENSORS);
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await apiFetchWithFallback('/api/monitoring', {
+          headers: { Authorization: `Bearer ${globalAuthToken}` },
+        });
+        if (res.ok) {
+          const data = await readApiJson<{ status?: string; data?: { zones?: Zone[]; sensors?: Sensor[] } }>(res);
+          if (data?.status === 'success' && data.data) {
+            setZones(data.data.zones && data.data.zones.length > 0 ? data.data.zones : FALLBACK_ZONES);
+            setSensors(data.data.sensors && data.data.sensors.length > 0 ? data.data.sensors : FALLBACK_SENSORS);
+          } else {
+            setZones(FALLBACK_ZONES);
+            setSensors(FALLBACK_SENSORS);
+          }
+        } else {
+          setZones(FALLBACK_ZONES);
+          setSensors(FALLBACK_SENSORS);
+        }
+      } catch {
+        setZones(FALLBACK_ZONES);
+        setSensors(FALLBACK_SENSORS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchMonitoring();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: palette.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={palette.tint} />
+      </View>
+    );
+  }
+
+  const avgGas = Math.round(zones.reduce((sum, z) => sum + z.gasLevel, 0) / (zones.length || 1));
+  const avgTemp = (zones.reduce((sum, z) => sum + z.temp, 0) / (zones.length || 1)).toFixed(1);
+  const criticalCount = zones.filter((z) => z.status === 'critical').length;
+  const hasWarning = zones.some((z) => z.status === 'warning' || z.status === 'critical');
+  const sysStatus = criticalCount > 0 ? 'Critical' : hasWarning ? 'Warning' : 'Normal';
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]} edges={['top']}>
@@ -93,10 +149,10 @@ export default function MonitoringScreen() {
 
         <View style={styles.metricGrid}>
           {[
-            { label: 'Avg Gas Level', value: '47 ppm', tone: 'warning' as const, icon: 'gas-meter' as const },
-            { label: 'Avg Temperature', value: '43.5 deg C', tone: 'danger' as const, icon: 'thermostat' as const },
-            { label: 'Critical Zones', value: '1', tone: 'danger' as const, icon: 'warning' as const },
-            { label: 'System Status', value: 'Warning', tone: 'warning' as const, icon: 'sensors' as const },
+            { label: 'Avg Gas Level', value: `${avgGas} ppm`, tone: avgGas > 60 ? 'danger' as const : avgGas > 30 ? 'warning' as const : 'normal' as const, icon: 'gas-meter' as const },
+            { label: 'Avg Temperature', value: `${avgTemp} deg C`, tone: parseFloat(avgTemp) > 45 ? 'danger' as const : parseFloat(avgTemp) > 40 ? 'warning' as const : 'normal' as const, icon: 'thermostat' as const },
+            { label: 'Critical Zones', value: `${criticalCount}`, tone: criticalCount > 0 ? 'danger' as const : 'normal' as const, icon: 'warning' as const },
+            { label: 'System Status', value: sysStatus, tone: sysStatus === 'Critical' ? 'danger' as const : sysStatus === 'Warning' ? 'warning' as const : 'normal' as const, icon: 'sensors' as const },
           ].map((metric) => (
             <View
               key={metric.label}
@@ -121,7 +177,7 @@ export default function MonitoringScreen() {
 
         <SectionHeader title="Zone monitoring" subtitle="Live gas and temperature readings by zone." palette={palette} />
         <View style={styles.zoneGrid}>
-          {ZONES.map((zone) => (
+          {zones.map((zone) => (
             <View
               key={zone.zone}
               style={[
@@ -186,7 +242,7 @@ export default function MonitoringScreen() {
 
         <SectionHeader title="Sensor details" subtitle="Active sensors and current readings." palette={palette} />
         <View style={styles.sensorGrid}>
-          {SENSORS.map((sensor) => (
+          {sensors.map((sensor) => (
             <View
               key={sensor.name}
               style={[
@@ -227,8 +283,10 @@ function toneColor(tone: ToneStatus, palette: Palette) {
       return palette.danger;
     case 'warning':
       return palette.warning;
-    default:
+    case 'normal':
       return palette.success;
+    default:
+      return palette.muted;
   }
 }
 

@@ -209,14 +209,6 @@ const EXTRA_WORKFLOW_TEMPLATES: Record<string, WorkflowTemplate> = {
     helper: 'Exports and structured summaries.',
     primaryLabel: 'Open reports',
   },
-  settings: {
-    title: 'Settings',
-    summary: 'Manage your account and preferences.',
-    icon: 'settings',
-    tone: 'neutral',
-    helper: 'Account, security, and notification controls.',
-    primaryLabel: 'Open settings',
-  },
   'incident-review': {
     title: 'Incident Review',
     summary: 'Inspect open incidents and assign follow-up actions before closure.',
@@ -224,14 +216,6 @@ const EXTRA_WORKFLOW_TEMPLATES: Record<string, WorkflowTemplate> = {
     tone: 'danger',
     helper: 'Safety queue for incident triage.',
     primaryLabel: 'Open review queue',
-  },
-  'system-control': {
-    title: 'System Control',
-    summary: 'Core policy, permissions, and configuration controls for authority users.',
-    icon: 'settings',
-    tone: 'warning',
-    helper: 'Authority and admin control surface.',
-    primaryLabel: 'Open system control',
   },
 };
 

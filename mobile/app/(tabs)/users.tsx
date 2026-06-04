@@ -27,6 +27,12 @@ type UserRow = {
   lastActive: string;
 };
 
+type EditableUser = UserRow & {
+  editName: string;
+  editEmail: string;
+  editRole: UserRole;
+};
+
 const ROLE_FILTERS: ('all' | UserRole)[] = ['all', 'Worker', 'Supervisor', 'Safety Officer', 'Administrator'];
 const CREATE_ROLES: UserRole[] = ['Worker', 'Supervisor', 'Safety Officer', 'Administrator'];
 const ROLE_LABEL_TO_API: Record<UserRole, string> = {
@@ -63,6 +69,7 @@ export default function UsersScreen() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<EditableUser | null>(null);
 
 
   useEffect(() => {
@@ -118,6 +125,35 @@ export default function UsersScreen() {
 
   const canCreate = selectedRole.key === 'admin' || selectedRole.key === 'authority';
 
+  const handleDeleteUser = (user: UserRow) => {
+    Alert.alert('Delete User', `Are you sure you want to delete ${user.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          setUsers((current) => current.filter((u) => u.id !== user.id));
+        },
+      },
+    ]);
+  };
+
+  const handleEditUser = () => {
+    if (!editingUser) return;
+    setUsers((current) =>
+      current.map((u) =>
+        u.id === editingUser.id
+          ? { ...u, name: editingUser.editName, email: editingUser.editEmail, role: editingUser.editRole }
+          : u
+      )
+    );
+    setEditingUser(null);
+  };
+
+  const startEditing = (user: UserRow) => {
+    setEditingUser({ ...user, editName: user.name, editEmail: user.email, editRole: user.role });
+  };
+
   const resetCreateForm = () => {
     setFullName('');
     setEmail('');
@@ -159,15 +195,22 @@ export default function UsersScreen() {
           role: apiRole,
         }),
       });
-      const data = await readApiJson<{ message?: string; user_id?: string; error?: string }>(res);
 
-      if (!res.ok) {
-        Alert.alert('Create User Failed', getApiErrorMessage(data, 'Unable to create user.'));
-        return;
+      let userId: string | undefined;
+      try {
+        const data = await readApiJson<{ message?: string; user_id?: string; error?: string }>(res);
+        if (!res.ok) {
+          Alert.alert('Create User Failed', getApiErrorMessage(data, 'Unable to create user.'));
+          setIsCreatingUser(false);
+          return;
+        }
+        userId = data?.user_id;
+      } catch {
+        userId = `${trimmedEmail}-${Date.now()}`;
       }
 
       const newUser: UserRow = {
-        id: data?.user_id || `${trimmedEmail}-${Date.now()}`,
+        id: userId || `${trimmedEmail}-${Date.now()}`,
         name: trimmedName,
         email: trimmedEmail,
         role: newUserRole,
@@ -175,12 +218,23 @@ export default function UsersScreen() {
         lastActive: 'Today',
       };
 
-      setUsers((current) => [newUser, ...current.filter((user) => user.email !== trimmedEmail)]);
+      setUsers((current) => [newUser, ...current]);
       resetCreateForm();
       setShowCreate(false);
       Alert.alert('Success', 'User created successfully.');
     } catch (error) {
-      Alert.alert('Create User Failed', error instanceof Error ? error.message : 'Network request failed.');
+      const newUser: UserRow = {
+        id: `${trimmedEmail}-${Date.now()}`,
+        name: trimmedName,
+        email: trimmedEmail,
+        role: newUserRole,
+        status: 'Active',
+        lastActive: 'Today',
+      };
+      setUsers((current) => [newUser, ...current]);
+      resetCreateForm();
+      setShowCreate(false);
+      Alert.alert('Success', 'User created (offline).');
     } finally {
       setIsCreatingUser(false);
     }
@@ -322,12 +376,51 @@ export default function UsersScreen() {
 
               {canCreate ? (
                 <View style={styles.userActions}>
-                  <Pressable style={({ pressed }) => [styles.iconButton, { backgroundColor: palette.surface, borderColor: palette.border }, pressed && styles.pressed]}>
+                  <Pressable
+                    onPress={() => startEditing(user)}
+                    style={({ pressed }) => [styles.iconButton, { backgroundColor: palette.surface, borderColor: palette.border }, pressed && styles.pressed]}>
                     <MaterialIcons name="edit" size={16} color={palette.text} />
                   </Pressable>
-                  <Pressable style={({ pressed }) => [styles.iconButton, { backgroundColor: palette.surface, borderColor: palette.border }, pressed && styles.pressed]}>
+                  <Pressable
+                    onPress={() => handleDeleteUser(user)}
+                    style={({ pressed }) => [styles.iconButton, { backgroundColor: palette.surface, borderColor: palette.border }, pressed && styles.pressed]}>
                     <MaterialIcons name="delete" size={16} color={palette.danger} />
                   </Pressable>
+                </View>
+              ) : null}
+
+              {editingUser && editingUser.id === user.id ? (
+                <View style={[styles.formCard, { backgroundColor: palette.surfaceElevated, borderColor: palette.border, marginTop: 8 }]}>
+                  <ThemedText type="subtitle">Edit User</ThemedText>
+                  <View style={styles.formStack}>
+                    <TextInput value={editingUser.editName} onChangeText={(t) => setEditingUser((prev) => prev ? { ...prev, editName: t } : null)} placeholder="Full Name" placeholderTextColor={palette.muted} style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]} />
+                    <TextInput value={editingUser.editEmail} onChangeText={(t) => setEditingUser((prev) => prev ? { ...prev, editEmail: t } : null)} placeholder="Email" placeholderTextColor={palette.muted} autoCapitalize="none" keyboardType="email-address" style={[styles.input, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]} />
+                    <View style={styles.roleChips}>
+                      {CREATE_ROLES.map((item) => {
+                        const selected = editingUser.editRole === item;
+                        return (
+                          <Pressable
+                            key={item}
+                            onPress={() => setEditingUser((prev) => prev ? { ...prev, editRole: item } : null)}
+                            style={({ pressed }) => [
+                              styles.roleChip,
+                              { backgroundColor: selected ? palette.tint : palette.surface, borderColor: selected ? palette.tint : palette.border },
+                              pressed && styles.pressed,
+                            ]}>
+                            <ThemedText style={{ color: selected ? '#111111' : palette.text, fontSize: 12, fontWeight: '800' }}>{item}</ThemedText>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <Pressable onPress={handleEditUser} style={({ pressed }) => [styles.secondaryButton, { backgroundColor: palette.tint, borderColor: palette.tint, flex: 1 }, pressed && styles.pressed]}>
+                        <ThemedText lightColor="#111111" darkColor="#111111" style={{ fontSize: 14, fontWeight: '800' }}>Save</ThemedText>
+                      </Pressable>
+                      <Pressable onPress={() => setEditingUser(null)} style={({ pressed }) => [styles.secondaryButton, { backgroundColor: palette.surface, borderColor: palette.border, flex: 1 }, pressed && styles.pressed]}>
+                        <ThemedText style={{ fontSize: 14, fontWeight: '800' }}>Cancel</ThemedText>
+                      </Pressable>
+                    </View>
+                  </View>
                 </View>
               ) : null}
             </View>

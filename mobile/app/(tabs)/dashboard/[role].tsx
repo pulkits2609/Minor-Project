@@ -58,20 +58,17 @@ const roleQuickActions: Record<MineOpsRoleKey, DashboardShortcut[]> = {
     { key: 'monitoring', title: 'Safety monitoring', detail: 'Gas, temperature, and zone readings.', icon: 'insights', action: 'monitoring' },
     { key: 'alerts', title: 'Alert feed', detail: 'Critical notices and system warnings.', icon: 'notifications', action: 'alerts' },
     { key: 'incident-review', title: 'Incident review', detail: 'Triage the open review queue.', icon: 'assignment', action: 'incident-review' },
-    { key: 'settings', title: 'Settings', detail: 'Response preferences and controls.', icon: 'settings', action: 'settings' },
   ],
   admin: [
     { key: 'users', title: 'Users', detail: 'Manage accounts and access.', icon: 'person', action: 'users' },
     { key: 'roles', title: 'Roles', detail: 'Review permission hierarchy.', icon: 'security', action: 'roles' },
     { key: 'logs', title: 'Logs', detail: 'Audit trail and system events.', icon: 'history', action: 'logs' },
-    { key: 'settings', title: 'Settings', detail: 'System preferences and security.', icon: 'settings', action: 'settings' },
   ],
   authority: [
     { key: 'shifts', title: 'Shift oversight', detail: 'Oversight of all active shifts.', icon: 'schedule', action: 'shifts' },
     { key: 'analytics', title: 'Analytics', detail: 'Trends across productivity and safety.', icon: 'analytics', action: 'analytics' },
     { key: 'reports', title: 'Reports', detail: 'Generate compliance and management summaries.', icon: 'description', action: 'reports' },
     { key: 'users', title: 'User control', detail: 'Cross-site access and governance.', icon: 'person', action: 'users' },
-    { key: 'system-control', title: 'System control', detail: 'Core policy and settings control.', icon: 'settings', action: 'system-control' },
   ],
 };
 
@@ -98,7 +95,6 @@ const roleMenuItems: Record<MineOpsRoleKey, DashboardShortcut[]> = {
     { key: 'analytics', title: 'Analytics', detail: 'Trend analysis and performance', icon: 'analytics', action: 'analytics' },
     { key: 'reports', title: 'Reports', detail: 'Compliance and management exports', icon: 'description', action: 'reports' },
     { key: 'users', title: 'User control', detail: 'Cross-site access and governance', icon: 'person', action: 'users' },
-    { key: 'system-control', title: 'System control', detail: 'Core policy and configuration', icon: 'settings', action: 'system-control' },
     { key: 'alerts', title: 'Global alerts', detail: 'Enterprise alerts and escalations', icon: 'notifications', action: 'alerts' },
   ],
 };
@@ -233,6 +229,16 @@ export default function RoleDashboardScreen() {
   };
 
   const openAction = (action: string) => {
+    if (action === 'analytics') {
+      router.push({ pathname: '/analytics', params: { role: selectedRole.key } });
+      return;
+    }
+
+    if (action === 'reports') {
+      router.push({ pathname: '/reports', params: { role: selectedRole.key } });
+      return;
+    }
+
     if (action === 'users') {
       router.push({ pathname: '/users', params: { role: selectedRole.key } });
       return;
@@ -245,11 +251,6 @@ export default function RoleDashboardScreen() {
 
     if (action === 'logs') {
       router.push({ pathname: '/logs', params: { role: selectedRole.key } });
-      return;
-    }
-
-    if (action === 'settings' || action === 'system-control') {
-      router.push({ pathname: '/settings', params: { role: selectedRole.key } });
       return;
     }
 
