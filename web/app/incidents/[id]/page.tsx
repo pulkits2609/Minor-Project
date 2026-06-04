@@ -11,7 +11,7 @@ export default function IncidentDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const role = searchParams.get("role") || "worker";
-  const id = params.id;
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [incident, setIncident] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);

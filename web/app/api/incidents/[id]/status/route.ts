@@ -5,14 +5,15 @@ const API_BASE_URL =
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   const authHeader = request.headers.get("authorization");
 
   try {
+    const { id } = await context.params;
     const body = await request.json();
     const response = await fetch(
-      `${API_BASE_URL}/api/incidents/${params.id}/status`,
+      `${API_BASE_URL}/api/incidents/${id}/status`,
       {
         method: "PATCH",
         headers: {

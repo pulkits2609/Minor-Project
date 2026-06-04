@@ -5,12 +5,13 @@ const API_BASE_URL =
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   const authHeader = request.headers.get("authorization");
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/incidents`, {
+    const { id } = await context.params;
+    const response = await fetch(`${API_BASE_URL}/api/incidents/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -19,21 +20,7 @@ export async function GET(
     });
 
     const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
-    }
-
-    const incidents = Array.isArray(data?.data) ? data.data : [];
-    const incident = incidents.find((item) => item.id === params.id);
-
-    if (!incident) {
-      return NextResponse.json(
-        { error: "Incident not found" },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({ status: "success", data: incident });
+    return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
       { message: "Unable to load incident details" },
