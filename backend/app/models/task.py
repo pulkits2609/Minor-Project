@@ -12,5 +12,6 @@ class Task(db.Model):
 
     assigned_to = db.Column(db.UUID(as_uuid=True), db.ForeignKey("users.id"))
     assigned_by = db.Column(db.UUID(as_uuid=True), db.ForeignKey("users.id"))
+    incident_id = db.Column(db.UUID(as_uuid=True), db.ForeignKey("incidents.id"), nullable=True)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now())
