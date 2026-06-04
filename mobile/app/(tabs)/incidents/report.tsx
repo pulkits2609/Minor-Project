@@ -104,6 +104,21 @@ export default function IncidentReportScreen() {
 
       if (data?.status === 'success' || data?.reference || data?.id) {
         const reportReference = data.reference || `INC-${String(data.id).slice(0, 8).toUpperCase()}`;
+        const alertMessage = `Incident reported in ${formState.location}: ${formState.severity} severity - ${incidentDescription}`;
+
+        try {
+          await apiFetchWithFallback('/api/alerts/emergency', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ message: alertMessage }),
+          });
+        } catch (alertError) {
+          console.warn('Incident saved, but alert broadcast failed', alertError);
+        }
+
         setReference(reportReference);
         setSubmitted(true);
       } else {

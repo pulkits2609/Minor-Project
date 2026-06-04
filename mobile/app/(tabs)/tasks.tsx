@@ -219,7 +219,7 @@ export default function TasksScreen() {
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: nextStatus.mobile } : t));
         Alert.alert('Success', `Task marked as ${nextStatus.label}`);
       } else {
-        Alert.alert('Error', data.error || 'Failed to update task');
+        Alert.alert('Error', data?.error || 'Failed to update task');
       }
     } catch {
       Alert.alert('Error', 'Connection failed');

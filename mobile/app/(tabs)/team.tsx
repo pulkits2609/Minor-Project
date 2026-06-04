@@ -55,7 +55,7 @@ export default function TeamScreen() {
         });
         const data = await readApiJson<{ status?: string; data?: any[] }>(res);
         if (data?.status === 'success') {
-          const mappedTeam = data.data.map((t: any) => ({
+          const mappedTeam = (data.data || []).map((t: any) => ({
             id: t.id,
             name: t.name || 'Unknown User',
             role: t.role || 'worker',

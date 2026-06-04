@@ -41,6 +41,8 @@ type ApiStatusResponse = {
   message?: string;
 };
 
+const minutesSinceMidnight = (date: Date) => date.getHours() * 60 + date.getMinutes();
+
 export default function ShiftsScreen() {
   useProtectedRoute(['worker', 'supervisor', 'admin', 'authority']);
 
@@ -131,6 +133,11 @@ export default function ShiftsScreen() {
   const handleCreateShift = async () => {
     if (!newLocation) {
       Alert.alert('Missing Fields', 'Please enter a location for the shift.');
+      return;
+    }
+
+    if (minutesSinceMidnight(endDate) <= minutesSinceMidnight(startDate)) {
+      Alert.alert('Invalid Shift Time', 'End time must be later than start time for the same day.');
       return;
     }
 
